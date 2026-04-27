@@ -3,20 +3,255 @@ import { useAuth } from '../context/AuthContext';
 import { useStore } from '../context/StoreContext';
 import { supabase } from '../lib/supabase';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, ShoppingBag, ListOrdered, Image as ImageIcon, Users, LogOut, ChevronRight, Database } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, ListOrdered, Image as ImageIcon, Users, LogOut, ChevronRight, Database, BarChart3 } from 'lucide-react';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  LineChart, 
+  Line, 
+  PieChart, 
+  Pie, 
+  Cell 
+} from 'recharts';
+
+const AdminReports = () => {
+  const [data, setData] = React.useState<any>({
+    salesByDay: [],
+    salesByCategory: [],
+    topProducts: [],
+    orderSummary: []
+  });
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchReportData = async () => {
+      try {
+        const { data: orders, error } = await supabase
+          .from('pedidos')
+          .select('*, itens_pedidos(*)');
+
+        if (error) throw error;
+
+        if (orders) {
+          // 1. Sales by Day (Last 7 days)
+          const last7Days = [...Array(7)].map((_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            return d.toISOString().split('T')[0];
+          }).reverse();
+
+          const salesByDay = last7Days.map(date => {
+            const dayOrders = orders.filter(o => o.criado_em.startsWith(date));
+            const total = dayOrders.reduce((acc, curr) => acc + (curr.valor_total || curr.total || 0), 0);
+            return {
+              date: new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+              vendas: total
+            };
+          });
+
+          // 2. Orders by Status
+          const statusCounts: Record<string, number> = {};
+          orders.forEach(o => {
+            const status = o.status || 'recebido';
+            statusCounts[status] = (statusCounts[status] || 0) + 1;
+          });
+          const orderSummary = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+
+          // 3. Top Products
+          const productSales: Record<string, { name: string, quantity: number, total: number }> = {};
+          orders.forEach(o => {
+            if (o.itens_pedidos) {
+              o.itens_pedidos.forEach((item: any) => {
+                const name = item.nome_produto || item.name || 'Produto Desconhecido';
+                if (!productSales[name]) {
+                  productSales[name] = { name, quantity: 0, total: 0 };
+                }
+                productSales[name].quantity += (item.quantidade || 1);
+                productSales[name].total += (item.preco_unitario || item.price || 0) * (item.quantidade || 1);
+              });
+            }
+          });
+
+          const topProducts = Object.values(productSales)
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 5);
+
+          setData({
+            salesByDay,
+            orderSummary,
+            topProducts
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching report data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReportData();
+  }, []);
+
+  const COLORS = ['#D4AF37', '#000000', '#4B5563', '#9CA3AF', '#E5E7EB'];
+
+  if (loading) return <div className="p-12 text-center text-gray-400 font-bold uppercase tracking-widest text-xs">Gerando relatórios...</div>;
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div>
+        <h2 className="text-2xl font-black text-black uppercase tracking-tight">Relatórios de Performance</h2>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Análise detalhada de vendas e pedidos</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Sales Chart */}
+        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+          <h3 className="text-xs font-black uppercase tracking-widest text-black mb-6">Vendas nos Últimos 7 Dias</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data.salesByDay}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700 }} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  labelStyle={{ fontWeight: 800, fontSize: '10px', textTransform: 'uppercase' }}
+                />
+                <Line type="monotone" dataKey="vendas" stroke="#D4AF37" strokeWidth={4} dot={{ fill: '#D4AF37', strokeWidth: 2, r: 4 }} activeDot={{ r: 6 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Status Distribution */}
+        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+          <h3 className="text-xs font-black uppercase tracking-widest text-black mb-6">Distribuição de Status</h3>
+          <div className="h-64 flex flex-col md:flex-row items-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data.orderSummary}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {data.orderSummary.map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="md:w-48 space-y-2 mt-4 md:mt-0">
+              {data.orderSummary.map((s: any, idx: number) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">{s.name}: {s.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Top Products */}
+      <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+        <h3 className="text-xs font-black uppercase tracking-widest text-black mb-6">Top 5 Produtos por Receita</h3>
+        <div className="space-y-4">
+          {data.topProducts.map((p: any, idx: number) => (
+            <div key={idx} className="flex items-center gap-4 group">
+              <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center font-black text-xs text-gray-400 group-hover:bg-gold group-hover:text-white transition-all">
+                {idx + 1}
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-sm uppercase">{p.name}</p>
+                <div className="w-full bg-gray-50 h-2 rounded-full mt-1 overflow-hidden">
+                  <div 
+                    className="bg-gold h-full rounded-full transition-all duration-1000" 
+                    style={{ width: `${(p.total / data.topProducts[0].total) * 100}%` }}
+                  />
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-black text-sm">R$ {p.total.toFixed(2).replace('.', ',')}</p>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{p.quantity} vendidos</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const AdminSummary = () => {
   const { products, seedDatabase } = useStore();
   const [customerCount, setCustomerCount] = React.useState(0);
+  const [stats, setStats] = React.useState({
+    vendasTotal: 0,
+    pedidosPendentes: 0,
+    pedidosEntregues: 0,
+    pedidosTotal: 0
+  });
 
   React.useEffect(() => {
     const fetchStats = async () => {
-      const { count } = await supabase.from('clientes').select('*', { count: 'exact', head: true });
-      if (count !== null) setCustomerCount(count);
+      try {
+        // Clientes
+        const { count: cCount, error: cError } = await supabase.from('clientes').select('*', { count: 'exact', head: true });
+        if (cError) console.error('Error fetching customers count:', cError);
+        if (cCount !== null) setCustomerCount(cCount);
+
+        // Pedidos stats
+        const { data: pedidos, error: pError } = await supabase.from('pedidos').select('*');
+        
+        if (pError) {
+          console.error('Error fetching orders stats:', pError);
+          return;
+        }
+
+        if (pedidos) {
+          console.log('DASHBOARD PEDIDOS DATA:', pedidos);
+          
+          const totalVendas = pedidos.reduce((acc, curr) => {
+            // Tentar várias colunas comuns de valor total
+            const val = curr.valor_total || curr.total || curr.amount || curr.valor_produtos || 0;
+            return acc + Number(val);
+          }, 0);
+
+          const totalPedidos = pedidos.length;
+          const entregues = pedidos.filter(p => 
+            p.status?.toLowerCase() === 'entregue' || 
+            p.status?.toLowerCase() === 'delivered' ||
+            p.status?.toLowerCase() === 'concluido'
+          ).length;
+
+          const pendentes = pedidos.filter(p => 
+            !['enviado', 'shipped', 'entregue', 'delivered', 'cancelado', 'cancelled'].includes(p.status?.toLowerCase())
+          ).length;
+
+          setStats({
+            vendasTotal: totalVendas,
+            pedidosPendentes: pendentes,
+            pedidosEntregues: entregues,
+            pedidosTotal: totalPedidos
+          });
+        }
+      } catch (err) {
+        console.error('Unexpected error in fetchStats:', err);
+      }
     };
     fetchStats();
   }, []);
-  
+
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
@@ -28,23 +263,26 @@ const AdminSummary = () => {
           <Database size={14} /> Seed DB
         </button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         {[
-          { label: 'Vendas (Hoje)', value: 'R$ 0,00', trend: 'Início' },
-          { label: 'Pedidos Pendentes', value: '0', trend: 'Ok' },
-          { label: 'Produtos Ativos', value: products.length.toString(), trend: 'Sincronizado' },
-          { label: 'Usuários Registrados', value: customerCount.toString(), trend: '+100%' },
+          { label: 'Vendas Totais', value: `R$ ${stats.vendasTotal.toFixed(2).replace('.', ',')}`, trend: 'Receita Bruta', path: '/admin/pedidos' },
+          { label: 'Total Pedidos', value: stats.pedidosTotal.toString(), trend: 'Volume total', path: '/admin/pedidos' },
+          { label: 'Pendentes', value: stats.pedidosPendentes.toString(), trend: 'Ação Necessária', color: 'text-orange-500', path: '/admin/pedidos' },
+          { label: 'Finalizados', value: stats.pedidosEntregues.toString(), trend: 'Entregues', color: 'text-green-500', path: '/admin/pedidos' },
+          { label: 'Produtos / Usuários', value: `${products.length} / ${customerCount}`, trend: 'Base Ativa', path: '/admin/produtos' },
         ].map((stat, idx) => (
-          <div key={idx} className="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm">
-            <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1">{stat.label}</p>
-            <p className="text-2xl font-black text-black mb-2">{stat.value}</p>
+          <Link key={idx} to={stat.path} className="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm hover:shadow-md transition-all group block">
+            <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1 group-hover:text-gold">{stat.label}</p>
+            <p className={`text-2xl font-black mb-2 ${stat.color || 'text-black'}`}>{stat.value}</p>
             <p className="text-[10px] font-bold text-gold uppercase tracking-widest">{stat.trend}</p>
-          </div>
+          </Link>
         ))}
       </div>
     </div>
   );
-};const AdminProducts = () => {
+};
+
+const AdminProducts = () => {
   const { products } = useStore();
   const [showForm, setShowForm] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
@@ -852,17 +1090,282 @@ const AdminCategories = () => {
   );
 };
 
-const AdminOrders = () => (
-  <div className="space-y-8">
-    <h2 className="text-2xl font-black text-black uppercase tracking-tight">Pedidos</h2>
-    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-      <div className="p-12 text-center text-gray-400 font-bold uppercase tracking-widest text-xs">
-        <ListOrdered size={48} className="mx-auto text-gray-100 mb-4" />
-        Nenhum pedido registrado no sistema.
+const AdminOrders = () => {
+  const [orders, setOrders] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [expandedOrder, setExpandedOrder] = React.useState<any | null>(null);
+  const [trackingCode, setTrackingCode] = React.useState('');
+  const [updating, setUpdating] = React.useState(false);
+
+  React.useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const { data, error } = await supabase.from('pedidos').select(`
+            *,
+            clientes (*, enderecos_clientes(*)),
+            itens_pedidos (*)
+        `).order('criado_em', { ascending: false });
+        
+        if (error) throw error;
+        console.log('ADMIN ORDERS:', data);
+        setOrders(data || []);
+      } catch (err: any) {
+        console.error('Error fetching orders:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrders();
+  }, []);
+
+  const handleUpdateStatus = async () => {
+    if (!expandedOrder) return;
+    if (!trackingCode.trim()) {
+      alert('Por favor, insira o código de rastreio.');
+      return;
+    }
+
+    setUpdating(true);
+    console.log('Iniciando atualização do pedido:', expandedOrder.id);
+    console.log('Valores:', { status: 'enviado', codigo_rastreio: trackingCode });
+
+    try {
+      // Usar o valor exato permitido pelo banco: 'enviado'
+      const { data, error } = await supabase
+        .from('pedidos')
+        .update({ 
+          status: 'enviado',
+          codigo_rastreio: trackingCode
+        })
+        .eq('id', expandedOrder.id)
+        .select();
+      
+      if (error) {
+        console.error('Erro retornado pelo Supabase:', error);
+        throw error;
+      }
+
+      console.log('Resposta do banco:', data);
+
+      if (!data || data.length === 0) {
+        console.warn('Nenhuma linha foi atualizada. Verifique se o ID existe.');
+      }
+
+      const updatedOrder = { ...expandedOrder, status: 'enviado', codigo_rastreio: trackingCode };
+      setOrders(orders.map(o => o.id === expandedOrder.id ? updatedOrder : o));
+      setExpandedOrder(updatedOrder);
+      setTrackingCode('');
+      alert('Pedido atualizado para "enviado" com sucesso!');
+    } catch (err: any) {
+      console.error('Erro na função handleUpdateStatus:', err);
+      alert('Erro ao atualizar: ' + (err.message || 'Erro desconhecido. Verifique o console do navegador.'));
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <h2 className="text-2xl font-black text-black uppercase tracking-tight">Pedidos</h2>
+      
+      {expandedOrder && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto space-y-6">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-4">
+              <div>
+                <h3 className="text-xl font-black uppercase tracking-tight">Detalhes do Pedido</h3>
+                <p className="text-[10px] font-black text-gold uppercase tracking-widest">Nº #{expandedOrder.Num_Ped || expandedOrder.id.split('-')[0]}</p>
+              </div>
+              <button 
+                onClick={() => {
+                  setExpandedOrder(null);
+                  setTrackingCode('');
+                }}
+                className="text-gray-400 hover:text-black transition-colors p-2"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-8">
+              <div>
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Cliente</h4>
+                <p className="font-bold text-sm">{expandedOrder.clientes?.nome || expandedOrder.nome_cliente || 'N/A'}</p>
+                <p className="text-sm text-gray-500">{expandedOrder.clientes?.email || expandedOrder.email_cliente}</p>
+                <div className="mt-4">
+                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</h4>
+                  <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${
+                    ['enviado', 'entregue'].includes(expandedOrder.status) ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {expandedOrder.status || 'recebido'}
+                  </span>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Endereço de Entrega</h4>
+                {expandedOrder.clientes?.enderecos_clientes && expandedOrder.clientes.enderecos_clientes.length > 0 ? (
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <p>{expandedOrder.clientes.enderecos_clientes[0].rua}, {expandedOrder.clientes.enderecos_clientes[0].numero}</p>
+                    <p>{expandedOrder.clientes.enderecos_clientes[0].bairro}, {expandedOrder.clientes.enderecos_clientes[0].cidade} - {expandedOrder.clientes.enderecos_clientes[0].estado}</p>
+                    <p>CEP: {expandedOrder.clientes.enderecos_clientes[0].cep}</p>
+                    {expandedOrder.clientes.enderecos_clientes[0].complemento && (
+                      <p className="text-xs text-gray-400 italic">Comp: {expandedOrder.clientes.enderecos_clientes[0].complemento}</p>
+                    )}
+                  </div>
+                ) : expandedOrder.clientes?.addresses && Array.isArray(expandedOrder.clientes.addresses) && expandedOrder.clientes.addresses.length > 0 ? (
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <p>{expandedOrder.clientes.addresses[0].street}, {expandedOrder.clientes.addresses[0].number}</p>
+                    <p>{expandedOrder.clientes.addresses[0].neighborhood}, {expandedOrder.clientes.addresses[0].city} - {expandedOrder.clientes.addresses[0].state}</p>
+                    <p>CEP: {expandedOrder.clientes.addresses[0].zipCode}</p>
+                    {expandedOrder.clientes.addresses[0].complement && (
+                      <p className="text-xs text-gray-400 italic">Comp: {expandedOrder.clientes.addresses[0].complement}</p>
+                    )}
+                  </div>
+                ) : expandedOrder.endereco_entrega ? (
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <p>{expandedOrder.endereco_entrega.line1} {expandedOrder.endereco_entrega.line2}</p>
+                    <p>{expandedOrder.endereco_entrega.city}, {expandedOrder.endereco_entrega.state} - {expandedOrder.endereco_entrega.postal_code}</p>
+                    <p>{expandedOrder.endereco_entrega.country}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">Endereço não disponível</p>
+                )}
+              </div>
+            </div>
+
+            {expandedOrder.status === 'Enviado' && expandedOrder.codigo_rastreio && (
+              <div className="bg-green-50 p-4 rounded-xl border border-green-100">
+                <h4 className="text-[10px] font-black text-green-700 uppercase tracking-widest mb-1">Código de Rastreio</h4>
+                <p className="font-mono font-bold text-green-800">{expandedOrder.codigo_rastreio}</p>
+              </div>
+            )}
+
+            <div>
+              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Itens do Pedido</h4>
+              <div className="space-y-4">
+                {expandedOrder.itens_pedidos && expandedOrder.itens_pedidos.length > 0 ? (
+                  expandedOrder.itens_pedidos.map((item: any, idx: number) => (
+                    <div key={idx} className="flex gap-4 items-center bg-gray-50 p-4 rounded-xl">
+                      <div className="flex-1">
+                        <p className="font-bold text-sm uppercase">{item.nome_produto || item.name}</p>
+                        <p className="text-xs text-gray-500">
+                           {item.cor ? `Cor: ${item.cor} | ` : ''} 
+                           {item.tamanho ? `Tam: ${item.tamanho} | ` : ''} 
+                           Qtd: {item.quantidade || item.quantity || 1}
+                        </p>
+                      </div>
+                      <p className="font-black">R$ {((item.preco_unitario || item.price || 0) * (item.quantidade || item.quantity || 1)).toFixed(2).replace('.', ',')}</p>
+                    </div>
+                  ))
+                ) : expandedOrder.itens && Array.isArray(expandedOrder.itens) ? (
+                  expandedOrder.itens.map((item: any, idx: number) => (
+                    <div key={idx} className="flex gap-4 items-center bg-gray-50 p-4 rounded-xl">
+                      <div className="flex-1">
+                        <p className="font-bold text-sm uppercase">{item.name}</p>
+                        <p className="text-xs text-gray-500">Cor: {item.color} | Tam: {item.size} | Qtd: {item.quantity}</p>
+                      </div>
+                      <p className="font-black">R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">Nenhum item listado.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-4 flex justify-between items-center">
+              <span className="text-sm font-black uppercase tracking-widest text-gray-400">Total</span>
+              <span className="text-xl font-black">R$ {(expandedOrder.valor_total || expandedOrder.total || 0).toFixed(2).replace('.', ',')}</span>
+            </div>
+            
+            {expandedOrder.status !== 'enviado' && expandedOrder.status !== 'entregue' && (
+              <div className="pt-6 border-t border-gray-100 space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block ml-1">Código de Rastreio</label>
+                  <input 
+                    type="text" 
+                    value={trackingCode}
+                    onChange={e => setTrackingCode(e.target.value)}
+                    placeholder="Insira o código da transportadora"
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold text-sm outline-none focus:border-gold transition-all"
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <button 
+                    onClick={handleUpdateStatus}
+                    disabled={updating}
+                    className="bg-black text-white px-10 py-4 rounded-xl uppercase tracking-widest text-[10px] font-black hover:bg-gold transition-colors shadow-lg disabled:opacity-50"
+                  >
+                    {updating ? 'Enviando...' : 'Marcar como Enviado'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+        {loading ? (
+          <div className="p-12 text-center text-gray-400 font-bold uppercase tracking-widest text-xs">Carregando...</div>
+        ) : orders.length > 0 ? (
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Nº Pedido</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Data</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Cliente</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Total</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Detalhes</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {orders.map(order => (
+                <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-6 py-4 font-black font-mono text-[11px] text-zinc-900 bg-zinc-50">
+                    #{order.Num_Ped || order.id.split('-')[0]}
+                  </td>
+                  <td className="px-6 py-4 font-bold text-sm text-black">
+                    {order.criado_em ? new Date(order.criado_em).toLocaleDateString() : 'N/A'}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm font-bold">{order.clientes?.nome || order.nome_cliente || 'N/A'}</div>
+                    <div className="text-[10px] text-gray-500">{order.clientes?.email || order.email_cliente || 'N/A'}</div>
+                  </td>
+                  <td className="px-6 py-4 font-bold text-sm">
+                    R$ {(order.valor_total || order.total || 0).toFixed(2).replace('.', ',')}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+                      ['enviado', 'entregue'].includes(order.status) ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'
+                    }`}>
+                      {order.status || 'recebido'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <button 
+                      onClick={() => setExpandedOrder(order)}
+                      className="text-[10px] font-black text-gray-400 hover:text-black uppercase tracking-[0.2em] transition-colors border border-gray-200 px-3 py-1.5 rounded-lg"
+                    >
+                      Ver Detalhes
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="p-12 text-center text-gray-400 font-bold uppercase tracking-widest text-xs">
+            <ListOrdered size={48} className="mx-auto text-gray-100 mb-4" />
+            Nenhum pedido registrado no sistema.
+          </div>
+        )}
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const AdminCustomers = () => {
   const [customers, setCustomers] = React.useState<any[]>([]);
@@ -1109,6 +1612,7 @@ export const AdminDashboard: React.FC = () => {
     { name: 'Produtos', icon: <ShoppingBag size={20} />, path: '/admin/produtos' },
     { name: 'Categorias', icon: <ListOrdered size={20} />, path: '/admin/categorias' },
     { name: 'Pedidos', icon: <ListOrdered size={20} />, path: '/admin/pedidos' },
+    { name: 'Relatórios', icon: <BarChart3 size={20} />, path: '/admin/relatorios' },
     { name: 'Banners', icon: <ImageIcon size={20} />, path: '/admin/banners' },
     { name: 'Clientes', icon: <Users size={20} />, path: '/admin/clientes' },
   ];
@@ -1155,6 +1659,7 @@ export const AdminDashboard: React.FC = () => {
           <Route path="produtos" element={<AdminProducts />} />
           <Route path="categorias" element={<AdminCategories />} />
           <Route path="pedidos" element={<AdminOrders />} />
+          <Route path="relatorios" element={<AdminReports />} />
           <Route path="banners" element={<AdminBanners />} />
           <Route path="clientes" element={<AdminCustomers />} />
           {/* Add more as needed */}

@@ -1,18 +1,184 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { User, Package, MapPin, LogOut, ChevronRight, Settings } from 'lucide-react';
 
-const Orders = () => (
-  <div className="space-y-6">
-    <h2 className="text-xl font-black text-black uppercase tracking-tight mb-8">Meus Pedidos</h2>
-    <div className="bg-gray-50 border border-gray-100 rounded-2xl p-12 text-center">
-      <Package size={48} className="mx-auto text-gray-200 mb-4" />
-      <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Você ainda não realizou nenhum pedido.</p>
-      <Link to="/catalogo" className="mt-6 inline-block bg-black text-white px-8 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gold transition-all">Ir para a Loja</Link>
+const Orders = () => {
+  const { user } = useAuth();
+  const [orders, setOrders] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchOrders = async () => {
+      if (!user) return;
+      try {
+        const { data, error } = await supabase
+          .from('pedidos')
+          .select('*, clientes(*, enderecos_clientes(*)), itens_pedidos(*)')
+          .eq('cliente_id', user.uid)
+          .order('criado_em', { ascending: false });
+          
+        if (error) {
+          console.error(error);
+          return;
+        }
+        
+        console.log("CLIENT ORDERS:", data);
+        setOrders(data || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrders();
+  }, [user]);
+
+  const [updatingId, setUpdatingId] = React.useState<string | null>(null);
+
+  const handleConfirmDelivery = async (orderId: string) => {
+    console.log('Iniciando handleConfirmDelivery para ID:', orderId);
+    // Removendo confirm para teste de clique direto
+    
+    setUpdatingId(orderId);
+    try {
+      console.log('Executando update no Supabase...');
+      const { data, error } = await supabase
+        .from('pedidos')
+        .update({ status: 'entregue' })
+        .eq('id', orderId)
+        .select();
+        
+      if (error) {
+        console.error('Erro retornado pelo Supabase (confirm delivery):', error);
+        throw error;
+      }
+      
+      console.log('Dados retornados do update:', data);
+      
+      if (data && data.length > 0) {
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'entregue' } : o));
+        alert('Entrega confirmada com sucesso!');
+      } else {
+        console.warn('Update executado mas zero linhas afetadas. Verifique se o ID existe e se o RLS permite update pelo cliente.');
+        alert('O pedido não pôde ser atualizado. Verifique se você é o dono deste pedido.');
+      }
+    } catch (err: any) {
+      console.error('Erro capturado no catch de confirmação:', err);
+      alert('Erro ao confirmar entrega: ' + (err.message || 'Erro desconhecido'));
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-12 text-center text-gray-400 font-bold uppercase tracking-widest text-xs">Carregando...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-black text-black uppercase tracking-tight mb-8">Meus Pedidos</h2>
+      {orders.length === 0 ? (
+        <div className="bg-gray-50 border border-gray-100 rounded-2xl p-12 text-center">
+          <Package size={48} className="mx-auto text-gray-200 mb-4" />
+          <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Você ainda não realizou nenhum pedido.</p>
+          <Link to="/catalogo" className="mt-6 inline-block bg-black text-white px-8 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gold transition-all">Ir para a Loja</Link>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {orders.map((order) => (
+            <div key={order.id} className="bg-gray-50 border border-gray-100 rounded-2xl p-6">
+              <div className="flex justify-between items-center mb-4 border-b border-gray-200 pb-4">
+                <div>
+                  <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest block mb-1">
+                    Realizado em {order.criado_em ? new Date(order.criado_em).toLocaleDateString() : 'N/A'}
+                  </span>
+                  <span className="font-bold text-sm">Nº do Pedido: <span className="font-black text-xs text-gold">#{order.Num_Ped || order.id.split('-')[0]}</span></span>
+                </div>
+                <div className="text-right">
+                  <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+                      ['enviado', 'entregue'].includes(order.status) 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {order.status || 'recebido'}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                {order.itens_pedidos && order.itens_pedidos.length > 0 ? (
+                  order.itens_pedidos.map((item: any, idx: number) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span className="font-bold uppercase text-[10px]">
+                        {item.quantidade || 1}x {item.nome_produto}
+                        {item.cor && ` - ${item.cor}`}
+                        {item.tamanho && ` (Tam: ${item.tamanho})`}
+                      </span>
+                      <span className="font-black">R$ {((item.preco_unitario || 0) * (item.quantidade || 1)).toFixed(2).replace('.', ',')}</span>
+                    </div>
+                  ))
+                ) : order.itens && Array.isArray(order.itens) ? (
+                   order.itens.map((item: any, idx: number) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span className="font-bold uppercase text-[10px]">
+                        {item.quantity || 1}x {item.name}
+                        {item.color && ` - ${item.color}`}
+                        {item.size && ` (Tam: ${item.size})`}
+                      </span>
+                      <span className="font-black">R$ {((item.price || 0) * (item.quantity || 1)).toFixed(2).replace('.', ',')}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-gray-500">Detalhes não listados.</p>
+                )}
+              </div>
+              
+              <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center">
+                <div>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total</span>
+                   <span className="font-black text-lg block">R$ {(order.valor_total || order.total || 0).toFixed(2).replace('.', ',')}</span>
+                </div>
+                {order.codigo_rastreio && (
+                  <div className="text-right">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gold block text-[8px]">Código de Rastreio</span>
+                    <span className="font-mono text-[10px] font-bold bg-gold/10 text-gold px-2 py-1 rounded select-all cursor-pointer" title="Clique para copiar">{order.codigo_rastreio}</span>
+                  </div>
+                )}
+              </div>
+              
+              {order.status === 'enviado' && (
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    console.log('CLIQUE NO BOTAO DETECTADO!', order.id);
+                    handleConfirmDelivery(order.id);
+                  }}
+                  disabled={updatingId === order.id}
+                  className={`w-full mt-6 py-4 rounded-xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg active:scale-[0.98] border-2 border-transparent transition-all flex items-center justify-center gap-2 ${
+                    updatingId === order.id 
+                      ? 'bg-gray-400 text-white cursor-not-allowed' 
+                      : 'bg-black text-white hover:bg-green-600 hover:border-green-400'
+                  }`}
+                >
+                  {updatingId === order.id ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Processando...
+                    </>
+                  ) : (
+                    'Recebi meu Produto'
+                  )}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 const UserData = () => {
   const { user, updateProfile } = useAuth();

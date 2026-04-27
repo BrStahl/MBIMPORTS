@@ -1,15 +1,90 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Hero } from '../components/Hero';
 import { ProductCard } from '../components/ProductCard';
 import { ProductModal } from '../components/ProductModal';
 import { useStore } from '../context/StoreContext';
+import { supabase } from '../lib/supabase';
 import { Product } from '../types';
 import { Truck, RotateCcw, ShieldCheck, CreditCard, ChevronRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 export const HomePage: React.FC = () => {
-  const { products, loading } = useStore();
+  const { products, loading, clearCart } = useStore();
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleSuccess = async (sessionId: string) => {
+      try {
+        const response = await fetch(`/api/checkout-session?session_id=${sessionId}`);
+        const session = await response.json();
+        
+        if (session && session.customer_details) {
+          // Extrair itens do cart
+          const items = session.metadata && session.metadata.cart ? JSON.parse(session.metadata.cart) : [];
+          
+          let clienteId = null;
+          const { data: clientData } = await supabase.from('clientes').select('id').eq('email', session.customer_details.email).single();
+          if (clientData) clienteId = clientData.id;
+
+          // Tentar salvar no banco com os campos corretos observados
+          const { data: pedido, error: pedidoError } = await supabase.from('pedidos').insert([{
+            cliente_id: clienteId,
+            status: 'recebido', // Valor oficial permitido
+            valor_produtos: session.amount_total / 100,
+            valor_frete: 0,
+            valor_desconto: 0,
+            valor_total: session.amount_total / 100,
+            forma_pagamento: 'Stripe'
+          }]).select().single();
+          
+          if (pedidoError) {
+            console.error('Erro ao salvar pedido:', pedidoError);
+          } else if (pedido) {
+            // Save items to itens_pedidos
+            const orderItems = items.map((item: any) => ({
+              pedido_id: pedido.id,
+              nome_produto: item.name,
+              quantidade: item.quantity,
+              preco_unitario: item.price,
+              cor: item.color,
+              tamanho: item.size
+            }));
+            
+            const { error: itemsError } = await supabase.from('itens_pedidos').insert(orderItems);
+            if (itemsError) console.error('Error saving items:', itemsError);
+          }
+        }
+        
+        toast.success('Pedido pago com sucesso! Agradecemos sua compra.', { duration: 5000 });
+        clearCart();
+        navigate('/', { replace: true });
+      } catch (err) {
+        console.error('Failed to process checkout session', err);
+        toast.success('Pedido pago, porém houve erro ao salvar o registro no app.', { duration: 5000 });
+        clearCart();
+        navigate('/', { replace: true });
+      }
+    };
+
+    const query = new URLSearchParams(location.search);
+    if (query.get('success')) {
+        const sessionId = query.get('session_id');
+        if (sessionId) {
+          handleSuccess(sessionId);
+        } else {
+          toast.success('Pedido pago com sucesso! Agradecemos sua compra.', { duration: 5000 });
+          clearCart();
+          navigate('/', { replace: true });
+        }
+    }
+    if (query.get('canceled')) {
+        toast.error('Pagamento cancelado. Seu carrinho foi salvo.', { duration: 5000 });
+        navigate('/', { replace: true });
+    }
+  }, [location.search]);
 
   const activeProducts = products.filter(p => p.status === 'active');
 

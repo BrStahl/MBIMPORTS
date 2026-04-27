@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Product, CartItem } from '../types';
+import { Product, CartItem, Banner, Category } from '../types';
 import { supabase } from '../lib/supabase';
 import { products as initialProducts } from '../data';
 

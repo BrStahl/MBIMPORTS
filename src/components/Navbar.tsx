@@ -65,7 +65,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
               className="flex-shrink-0 flex items-center cursor-pointer gap-3"
             >
               <img 
-                src="/logo.png" 
+                src="/favicon.png" 
                 alt="Logo" 
                 className="h-35 w-35 object-contain"
                 onError={(e) => {
@@ -198,7 +198,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
               <div className="flex items-center justify-between p-6 border-b border-gray-100">
                 <div className="flex items-center gap-3">
                   <img 
-                    src="/logo.png" 
+                    src="/favicon.png" 
                     alt="Logo" 
                     className="h-16 w-16 object-contain"
                     onError={(e) => {
