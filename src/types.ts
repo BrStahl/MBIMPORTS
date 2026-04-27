@@ -51,6 +51,7 @@ export type Category = {
   nome: string;
   slug: string;
   ativo: boolean;
+  tipo_produto?: 'Roupas' | 'Acessórios' | 'Calçados';
 };
 
 export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';

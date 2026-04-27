@@ -119,7 +119,7 @@ export const HomePage: React.FC = () => {
 
   const categories = [
     { name: 'Roupas', image: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&q=80&w=800', path: '/catalogo?cat=roupas' },
-    { name: 'Calçados', image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&q=80&w=800', path: '/catalogo?cat=shoes' },
+    { name: 'Calçados', image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&q=80&w=800', path: '/catalogo?cat=tenis' },
     { name: 'Acessórios', image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=800', path: '/catalogo?cat=accessories' },
   ];
 

@@ -17,7 +17,6 @@ type StoreContextType = {
   toggleWishlist: (product: Product) => void;
   isInWishlist: (productId: string) => boolean;
   clearCart: () => void;
-  seedDatabase: () => Promise<void>;
   fetchProducts: () => Promise<void>;
   fetchBanners: () => Promise<void>;
   fetchCategories: () => Promise<void>;
@@ -186,32 +185,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const seedDatabase = async () => {
-    try {
-      const { error } = await supabase
-        .from('produtos')
-        .upsert(initialProducts.map(p => ({
-          id: p.id,
-          name: p.name,
-          price: p.price,
-          category: p.category,
-          images: p.images,
-          description: p.description,
-          colors: p.colors,
-          sizes: p.sizes,
-          status: 'active',
-          is_new: p.isNew,
-          is_featured: p.isFeatured
-        })));
-
-      if (error) throw error;
-      console.log('Database seeded successfully');
-      fetchProducts();
-    } catch (error) {
-      console.error('Erro ao semear banco de dados:', error);
-    }
-  };
-
   const addToCart = (product: Product, color: string, size: string) => {
     setCart((prevCart) => {
       const existingItem = prevCart.find(
@@ -308,7 +281,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         toggleWishlist,
         isInWishlist,
         clearCart,
-        seedDatabase,
         fetchProducts,
         fetchBanners,
         fetchCategories,

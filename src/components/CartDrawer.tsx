@@ -197,18 +197,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onCheck
                 </p>
                 <div className="flex flex-col gap-3">
                   <button
-                    onClick={handleStripeCheckout}
-                    disabled={isCheckingOut}
+                    onClick={onCheckout}
                     className="w-full flex items-center justify-center gap-2 rounded-xl bg-black px-6 py-5 text-xs font-black uppercase tracking-[0.2em] text-white shadow-xl hover:bg-gold transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isCheckingOut ? (
-                      <>
-                        <Loader2 size={16} className="animate-spin" />
-                        Processando...
-                      </>
-                    ) : (
-                      'Finalizar Pedido'
-                    )}
+                    Finalizar Pedido
                   </button>
                   <button 
                     onClick={handleContinueShopping}

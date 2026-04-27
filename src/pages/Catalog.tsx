@@ -16,8 +16,34 @@ export const Catalog: React.FC = () => {
 
   const categories = [
     { id: 'all', name: 'Todos' },
-    { id: 'roupas', name: 'Roupas (Geral)' },
-    ...dbCategories.map(c => ({ id: c.slug, name: c.nome }))
+    { id: 'roupas', name: 'Roupas' },
+    { id: 'calcados', name: 'Calçados' },
+    { id: 'acessorios', name: 'Acessórios' },
+    ...dbCategories
+      .filter(c => {
+        if (categoryParam === 'all') return true;
+        
+        // Find if categoryParam is a main type
+        const mainTypesMap: Record<string, string> = {
+          'roupas': 'Roupas',
+          'calcados': 'Calçados',
+          'acessorios': 'Acessórios'
+        };
+        
+        const activeType = mainTypesMap[categoryParam];
+        if (activeType) {
+          return c.tipo_produto === activeType;
+        }
+
+        // If categoryParam is a specific slug, find its type and show categories of that same type
+        const selectedCat = dbCategories.find(dbC => dbC.slug === categoryParam);
+        if (selectedCat) {
+          return c.tipo_produto === selectedCat.tipo_produto;
+        }
+
+        return true;
+      })
+      .map(c => ({ id: c.slug, name: c.nome }))
   ];
 
   const filteredProducts = products.filter(p => {
@@ -45,12 +71,34 @@ export const Catalog: React.FC = () => {
     const isMatch = productCat === filterCat || 
                     productCat === filterCat + 's' || 
                     productCat + 's' === filterCat ||
-                    (filterCat === 'bermudas' && productCat === 'bermuda') ||
-                    (filterCat === 'calcas' && productCat === 'calca');
+                    (normalize(filterCat) === 'bermudas' && productCat === 'bermuda') ||
+                    (normalize(filterCat) === 'calcas' && productCat === 'calca') ||
+                    (normalize(filterCat) === 'tenis' && (productCat === 'tenis' || productCat === 'shoes' || productCat === 'calcados'));
 
     if (categoryParam === 'roupas') {
-      const clothingCats = ['camisetas', 'bermudas', 'calcas', 'camisas', 'shorts', 'short', 'bermuda', 'calca', 'camiseta', 'camisa'];
-      return clothingCats.some(c => productCat.includes(c));
+      const clothingCats = dbCategories
+        .filter(c => !c.tipo_produto || c.tipo_produto === 'Roupas')
+        .map(c => normalize(c.nome));
+      
+      const defaultClothing = ['camisetas', 'bermudas', 'calcas', 'camisas', 'shorts', 'short', 'bermuda', 'calca', 'camiseta', 'camisa'];
+      return clothingCats.some(c => productCat.includes(c)) || defaultClothing.some(c => productCat.includes(c));
+    }
+
+    if (categoryParam === 'acessorios') {
+      const accessoryCats = dbCategories
+        .filter(c => c.tipo_produto === 'Acessórios')
+        .map(c => normalize(c.nome));
+      
+      return accessoryCats.some(c => productCat.includes(c));
+    }
+
+    if (categoryParam === 'calcados' || categoryParam === 'tenis') {
+      const footwearCats = dbCategories
+        .filter(c => c.tipo_produto === 'Calçados' || normalize(c.nome) === 'tenis')
+        .map(c => normalize(c.nome));
+      
+      const defaultFootwear = ['tenis', 'shoes', 'calcados', 'sapato', 'sandalia', 'chinelo'];
+      return footwearCats.some(c => productCat.includes(c)) || defaultFootwear.some(c => productCat.includes(c));
     }
 
     return isMatch;
@@ -79,7 +127,7 @@ export const Catalog: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 py-12">
         {/* Toolbar */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
-          <div className="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto">
+          <div className="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto hide-scrollbar">
             {categories.map(cat => (
               <button
                 key={cat.id}

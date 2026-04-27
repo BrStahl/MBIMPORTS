@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { useStore } from '../context/StoreContext';
 import { supabase } from '../lib/supabase';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, ShoppingBag, ListOrdered, Image as ImageIcon, Users, LogOut, ChevronRight, Database, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, ListOrdered, Image as ImageIcon, Users, LogOut, ChevronRight, Database, BarChart3, Search, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { 
   BarChart, 
   Bar, 
@@ -193,7 +194,7 @@ const AdminReports = () => {
 };
 
 const AdminSummary = () => {
-  const { products, seedDatabase } = useStore();
+  const { products } = useStore();
   const [customerCount, setCustomerCount] = React.useState(0);
   const [stats, setStats] = React.useState({
     vendasTotal: 0,
@@ -256,12 +257,6 @@ const AdminSummary = () => {
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-black text-black uppercase tracking-tight">Dashboard</h2>
-        <button 
-          onClick={() => seedDatabase()}
-          className="flex items-center gap-2 bg-zinc-200 text-black px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[10px] hover:bg-gold transition-all"
-        >
-          <Database size={14} /> Seed DB
-        </button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         {[
@@ -283,7 +278,8 @@ const AdminSummary = () => {
 };
 
 const AdminProducts = () => {
-  const { products } = useStore();
+  const { products, fetchProducts } = useStore();
+  const [searchTerm, setSearchTerm] = React.useState('');
   const [showForm, setShowForm] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -363,7 +359,7 @@ const AdminProducts = () => {
       setShowForm(true);
     } catch (err) {
       console.error(err);
-      alert('Erro ao carregar dados do produto');
+      toast.error('Erro ao carregar dados do produto');
     } finally {
       setLoading(false);
     }
@@ -385,14 +381,14 @@ const AdminProducts = () => {
   };
 
   const removeExistingImage = async (id: string) => {
-    if (!confirm('Excluir esta imagem permanentemente?')) return;
+    // confirm() bloqueado no sandbox
     try {
       const { error } = await supabase.from('imagens_produtos').delete().eq('id', id);
       if (error) throw error;
       setExistingImages(prev => prev.filter(img => img.id !== id));
     } catch (err) {
       console.error(err);
-      alert('Erro ao remover imagem');
+      toast.error('Erro ao remover imagem');
     }
   };
 
@@ -403,13 +399,13 @@ const AdminProducts = () => {
   const removeVariation = async (index: number) => {
     const v = variations[index];
     if (v.id) {
-      if (!confirm('Remover esta variação permanentemente?')) return;
+      // confirm() bloqueado no sandbox
       try {
         const { error } = await supabase.from('variacoes_produtos').delete().eq('id', v.id);
         if (error) throw error;
       } catch (err) {
         console.error(err);
-        alert('Erro ao remover variação');
+        toast.error('Erro ao remover variação');
         return;
       }
     }
@@ -427,10 +423,22 @@ const AdminProducts = () => {
     setVariations(newVariations);
   };
 
+  const deleteProduct = async (id: string) => {
+    try {
+      const { error } = await supabase.from('produtos').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Produto excluído com sucesso!');
+      fetchProducts();
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Erro ao excluir produto: ' + err.message);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.nome || !formData.preco_base) {
-      alert('Nome e Preço Base são obrigatórios');
+      toast.error('Nome e Preço Base são obrigatórios');
       return;
     }
     
@@ -564,11 +572,11 @@ const AdminProducts = () => {
         }
       }
 
-      alert(editingId ? 'Produto atualizado com sucesso!' : 'Produto cadastrado com sucesso!');
+      toast.success(editingId ? 'Produto atualizado com sucesso!' : 'Produto cadastrado com sucesso!');
       resetForm();
     } catch (err: any) {
       console.error(err);
-      alert('Erro ao processar produto: ' + (err.message || 'Erro desconhecido'));
+      toast.error('Erro ao processar produto: ' + (err.message || 'Erro desconhecido'));
     } finally {
       setLoading(false);
     }
@@ -918,17 +926,29 @@ const AdminProducts = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-black text-black uppercase tracking-tight">Produtos</h2>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Gerencie seu catálogo de produtos</p>
         </div>
-        <button 
-          onClick={() => setShowForm(true)}
-          className="bg-black text-white px-8 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gold transition-all shadow-xl hover:shadow-gold/20"
-        >
-          + Novo Produto
-        </button>
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="relative flex-1 md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input 
+              type="text"
+              placeholder="Buscar produto..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-white border border-gray-100 rounded-xl font-bold text-sm outline-none focus:border-gold transition-colors"
+            />
+          </div>
+          <button 
+            onClick={() => setShowForm(true)}
+            className="bg-black text-white px-8 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gold transition-all shadow-xl hover:shadow-gold/20 flex-shrink-0"
+          >
+            + Novo
+          </button>
+        </div>
       </div>
       <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm">
         <table className="w-full text-left">
@@ -942,7 +962,7 @@ const AdminProducts = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {products.map(p => (
+            {products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.category.toLowerCase().includes(searchTerm.toLowerCase())).map(p => (
               <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
                 <td className="px-8 py-6">
                   <div className="flex items-center gap-4">
@@ -958,12 +978,21 @@ const AdminProducts = () => {
                   </span>
                 </td>
                 <td className="px-8 py-6">
-                  <button 
-                    onClick={() => handleEdit(p)}
-                    className="text-gray-400 hover:text-black transition-colors font-black text-[10px] uppercase tracking-widest border border-gray-100 px-4 py-2 rounded-lg"
-                  >
-                    Editar
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => handleEdit(p)}
+                      className="text-gray-400 hover:text-black transition-colors font-black text-[10px] uppercase tracking-widest border border-gray-100 px-4 py-2 rounded-lg"
+                    >
+                      Editar
+                    </button>
+                    <button 
+                      onClick={() => deleteProduct(p.id)}
+                      className="text-gray-400 hover:text-red-500 transition-colors border border-gray-100 p-2 rounded-lg"
+                      title="Excluir Produto"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -976,12 +1005,21 @@ const AdminProducts = () => {
 
 const AdminCategories = () => {
   const [nome, setNome] = React.useState('');
+  const [tipoProduto, setTipoProduto] = React.useState<'Roupas' | 'Acessórios' | 'Calçados'>('Roupas');
   const [categories, setCategories] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
 
   const fetchCategories = async () => {
-    const { data } = await supabase.from('categorias').select('*').order('nome');
-    if (data) setCategories(data);
+    try {
+      const { data, error } = await supabase.from('categorias').select('*').order('nome');
+      if (error) {
+        console.error('Error fetching categories:', error);
+        return;
+      }
+      if (data) setCategories(data);
+    } catch (err) {
+      console.error('Unexpected error fetching categories:', err);
+    }
   };
 
   React.useEffect(() => {
@@ -996,27 +1034,62 @@ const AdminCategories = () => {
     const slug = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
     try {
-      const { error } = await supabase.from('categorias').insert([{ nome, slug }]);
-      if (error) throw error;
+      const { error } = await supabase.from('categorias').insert([{ 
+        nome: nome.trim(), 
+        slug, 
+        tipo_produto: tipoProduto,
+        ativo: true
+      }]);
+      
+      if (error) {
+        console.error('Supabase error inserting category:', error);
+        toast.error(`Erro ao salvar: ${error.message}`);
+        return;
+      }
+      
       setNome('');
+      setTipoProduto('Roupas');
       fetchCategories();
-    } catch (err) {
+      toast.success('Categoria salva com sucesso!');
+    } catch (err: any) {
       console.error(err);
-      alert('Erro ao salvar categoria');
+      toast.error('Erro inesperado ao salvar categoria');
     } finally {
       setLoading(false);
     }
   };
 
   const toggleAtivo = async (id: string, currentStatus: boolean) => {
-    await supabase.from('categorias').update({ ativo: !currentStatus }).eq('id', id);
-    fetchCategories();
+    try {
+      const { error } = await supabase.from('categorias').update({ ativo: !currentStatus }).eq('id', id);
+      if (error) {
+        toast.error(`Erro ao atualizar: ${error.message}`);
+        return;
+      }
+      fetchCategories();
+      toast.success('Status atualizado!');
+    } catch (err) {
+      toast.error('Erro ao atualizar status');
+    }
   };
 
   const deleteCategory = async (id: string) => {
-    if (!confirm('Tem certeza?')) return;
-    await supabase.from('categorias').delete().eq('id', id);
-    fetchCategories();
+    // confirm() é bloqueado no sandbox do AI Studio
+    try {
+      const { error } = await supabase.from('categorias').delete().eq('id', id);
+      if (error) {
+        if (error.code === '23503') {
+          toast.error('Não é possível excluir: existem produtos vinculados.');
+        } else {
+          toast.error(`Erro ao excluir: ${error.message}`);
+        }
+        return;
+      }
+      fetchCategories();
+      toast.success('Categoria excluída!');
+    } catch (err: any) {
+      toast.error('Erro inesperado ao excluir categoria');
+    }
   };
 
   return (
@@ -1026,7 +1099,7 @@ const AdminCategories = () => {
       </div>
 
       <div className="bg-white border border-gray-100 p-8 rounded-2xl shadow-sm">
-        <form onSubmit={handleSubmit} className="flex gap-4">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex-1">
             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Nome da Categoria</label>
             <input 
@@ -1038,11 +1111,24 @@ const AdminCategories = () => {
               required 
             />
           </div>
+          <div className="flex-1">
+            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Tipo de Produto</label>
+            <select 
+              value={tipoProduto}
+              onChange={(e) => setTipoProduto(e.target.value as any)}
+              className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 font-bold text-sm outline-none focus:border-gold"
+              required
+            >
+              <option value="Roupas">Roupas</option>
+              <option value="Acessórios">Acessórios</option>
+              <option value="Calçados">Calçados</option>
+            </select>
+          </div>
           <div className="flex items-end">
             <button 
               type="submit" 
               disabled={loading}
-              className="bg-black text-white px-8 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gold transition-all h-[52px]"
+              className="w-full bg-black text-white px-8 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gold transition-all h-[52px]"
             >
               {loading ? 'Salvando...' : 'Adicionar'}
             </button>
@@ -1055,6 +1141,7 @@ const AdminCategories = () => {
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Nome</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Tipo</th>
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Slug</th>
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Ações</th>
@@ -1064,6 +1151,11 @@ const AdminCategories = () => {
             {categories.map(c => (
               <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
                 <td className="px-6 py-4 font-bold text-sm text-black">{c.nome}</td>
+                <td className="px-6 py-4">
+                  <span className="text-[10px] font-black uppercase tracking-widest bg-zinc-100 px-2 py-1 rounded">
+                    {c.tipo_produto || 'Roupas'}
+                  </span>
+                </td>
                 <td className="px-6 py-4 font-mono text-[10px] text-gray-400">{c.slug}</td>
                 <td className="px-6 py-4">
                   <button 
@@ -1121,7 +1213,7 @@ const AdminOrders = () => {
   const handleUpdateStatus = async () => {
     if (!expandedOrder) return;
     if (!trackingCode.trim()) {
-      alert('Por favor, insira o código de rastreio.');
+      toast.error('Por favor, insira o código de rastreio.');
       return;
     }
 
@@ -1155,10 +1247,10 @@ const AdminOrders = () => {
       setOrders(orders.map(o => o.id === expandedOrder.id ? updatedOrder : o));
       setExpandedOrder(updatedOrder);
       setTrackingCode('');
-      alert('Pedido atualizado para "enviado" com sucesso!');
+      toast.success('Pedido atualizado para "enviado" com sucesso!');
     } catch (err: any) {
       console.error('Erro na função handleUpdateStatus:', err);
-      alert('Erro ao atualizar: ' + (err.message || 'Erro desconhecido. Verifique o console do navegador.'));
+      toast.error('Erro ao atualizar: ' + (err.message || 'Erro desconhecido. Verifique o console do navegador.'));
     } finally {
       setUpdating(false);
     }
@@ -1192,14 +1284,18 @@ const AdminOrders = () => {
                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Cliente</h4>
                 <p className="font-bold text-sm">{expandedOrder.clientes?.nome || expandedOrder.nome_cliente || 'N/A'}</p>
                 <p className="text-sm text-gray-500">{expandedOrder.clientes?.email || expandedOrder.email_cliente}</p>
-                <div className="mt-4">
-                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</h4>
-                  <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${
-                    ['enviado', 'entregue'].includes(expandedOrder.status) ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                  }`}>
-                    {expandedOrder.status || 'recebido'}
-                  </span>
-                </div>
+                  <div className="mt-4">
+                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</h4>
+                    <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${
+                      ['enviado', 'entregue'].includes(expandedOrder.status) 
+                        ? 'bg-green-100 text-green-700' 
+                        : expandedOrder.status === 'em_separacao'
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {expandedOrder.status === 'em_separacao' ? 'Em Separação' : (expandedOrder.status || 'recebido')}
+                    </span>
+                  </div>
               </div>
               
               <div>
@@ -1339,9 +1435,13 @@ const AdminOrders = () => {
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
-                      ['enviado', 'entregue'].includes(order.status) ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'
+                      ['enviado', 'entregue'].includes(order.status) 
+                        ? 'bg-green-50 text-green-700' 
+                        : order.status === 'em_separacao'
+                          ? 'bg-orange-50 text-orange-700'
+                          : 'bg-yellow-50 text-yellow-700'
                     }`}>
-                      {order.status || 'recebido'}
+                      {order.status === 'em_separacao' ? 'Em Separação' : (order.status || 'recebido')}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -1466,25 +1566,25 @@ const AdminBanners = () => {
       setImage(null);
       setPreview(null);
       fetchBanners();
-      alert('Banner cadastrado com sucesso!');
+      toast.success('Banner cadastrado com sucesso!');
     } catch (err) {
       console.error(err);
-      alert('Erro ao salvar banner');
+      toast.error('Erro ao salvar banner');
     } finally {
       setLoading(false);
     }
   };
 
   const deleteBanner = async (id: string) => {
-    if (!confirm('Excluir este banner?')) return;
+    // confirm() bloqueado no sandbox
     try {
       const { error } = await supabase.from('banners_promo').delete().eq('id', id);
       if (error) throw error;
       fetchBanners();
-      alert('Banner excluído com sucesso!');
+      toast.success('Banner excluído com sucesso!');
     } catch (err: any) {
       console.error(err);
-      alert('Erro ao excluir banner: ' + (err.message || 'Erro desconhecido'));
+      toast.error('Erro ao excluir banner: ' + (err.message || 'Erro desconhecido'));
     }
   };
 
@@ -1495,7 +1595,7 @@ const AdminBanners = () => {
       fetchBanners();
     } catch (err: any) {
       console.error(err);
-      alert('Erro ao atualizar status do banner');
+      toast.error('Erro ao atualizar status do banner');
     }
   };
 

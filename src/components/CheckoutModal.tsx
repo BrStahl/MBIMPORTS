@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { X, CheckCircle, ShieldCheck, CreditCard, MapPin } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
 
 type CheckoutModalProps = {
   isOpen: boolean;
@@ -8,17 +11,119 @@ type CheckoutModalProps = {
 };
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose }) => {
-  const { cartTotal, clearCart } = useStore();
+  const { cart, cartTotal, clearCart } = useStore();
+  const { user } = useAuth();
   const [step, setStep] = useState<1 | 2>(1); // 1: form, 2: success
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [useExistingAddress, setUseExistingAddress] = useState(false);
+  const [selectedAddressId, setSelectedAddressId] = useState('');
+
+  React.useEffect(() => {
+    if (user && user.addresses && user.addresses.length > 0) {
+      setUseExistingAddress(true);
+      setSelectedAddressId(user.addresses[0].id?.toString() || '');
+    }
+  }, [user]);
+
+  // Form State
+  const [formData, setFormData] = useState({
+    nome: '',
+    email: '',
+    rua: '',
+    numero: '',
+    bairro: '',
+    cidade: '',
+    cep: '',
+    estado: '',
+    cartao: '',
+    validade: '',
+    cvv: ''
+  });
 
   if (!isOpen) return null;
 
-  const handleCheckout = (e: React.FormEvent) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    setTimeout(() => {
-      setStep(2);
-      clearCart();
-    }, 1500); // simulate processing
+    if (cart.length === 0) {
+      toast.error('Seu carrinho está vazio.');
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      let clienteId = user?.uid;
+      
+      // Se não estiver logado, idealmente seria interessante um fallback, mas para esta simulação:
+      if (!clienteId && user) {
+         clienteId = user.uid;
+      }
+
+      // 1. Criar o Pedido
+      let finalAddress = '';
+      if (useExistingAddress && selectedAddressId && user?.addresses) {
+        const addr = user.addresses.find((a: any) => a.id.toString() === selectedAddressId);
+        if (addr) {
+          finalAddress = `${addr.rua}, ${addr.numero} - ${addr.bairro}, ${addr.cidade} - ${addr.estado} CEP: ${addr.cep}`;
+        }
+      }
+      
+      if (!finalAddress) {
+        finalAddress = `${formData.rua}, ${formData.numero} - ${formData.bairro}, ${formData.cidade} - ${formData.estado} CEP: ${formData.cep}`;
+      }
+
+      const pedidoData: any = {
+        status: 'em_separacao',
+        valor_total: cartTotal,
+        total: cartTotal,
+        endereco_entrega: finalAddress
+      };
+
+      if (clienteId) {
+        pedidoData.cliente_id = clienteId;
+      }
+
+      const { data: pedido, error: pedidoError } = await supabase
+        .from('pedidos')
+        .insert([pedidoData])
+        .select()
+        .single();
+
+      if (pedidoError) throw pedidoError;
+
+      // 2. Inserir itens do pedido
+      const itensData = cart.map((item: any) => ({
+        pedido_id: pedido.id,
+        produto_id: item.id || item.productId, // Fallback caso a propriedade mude
+        quantidade: item.quantity,
+        preco_unitario: item.price,
+        subtotal: Number(item.quantity) * Number(item.price),
+        nome_produto: item.name,
+        cor: item.color || '',
+        tamanho: item.size || ''
+      }));
+
+      const { error: itensError } = await supabase
+        .from('itens_pedidos')
+        .insert(itensData);
+
+      if (itensError) throw itensError;
+
+      setTimeout(() => {
+        setStep(2);
+        clearCart();
+        setIsProcessing(false);
+      }, 1500); // simulate processing
+      
+    } catch (error: any) {
+      console.error('Erro ao finalizar pedido:', error);
+      toast.error('Erro ao processar pagamento. Tente novamente.');
+      setIsProcessing(false);
+    }
   };
 
   const handleClose = () => {
@@ -44,45 +149,74 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
             </div>
             
             <form onSubmit={handleCheckout} className="p-8 overflow-y-auto space-y-8">
+              {!user && (
+                 <div className="bg-yellow-50 text-yellow-600 p-4 border border-yellow-100 rounded-xl text-sm font-bold">
+                   Aviso: Você não está logado. Seu pedido será criado, mas você não poderá acompanhá-lo no painel de usuário. Faça login antes se desejar acompanhar!
+                 </div>
+              )}
               {/* Personal Info */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2">
                   <CheckCircle size={14} className="text-gold" /> Dados Pessoais
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input required type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Nome Completo" />
-                  <input required type="email" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="E-mail" />
+                  <input required name="nome" value={formData.nome} onChange={handleChange} type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Nome Completo" />
+                  <input required name="email" value={formData.email} onChange={handleChange} type="email" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="E-mail" />
                 </div>
               </div>
 
               {/* Shipping Address */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2">
-                  <MapPin size={14} className="text-gold" /> Endereço de Entrega
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                    <MapPin size={14} className="text-gold" /> Endereço de Entrega
+                  </div>
+                  {user && user.addresses && user.addresses.length > 0 && (
+                    <button type="button" onClick={() => setUseExistingAddress(!useExistingAddress)} className="text-[10px] font-bold text-gold uppercase hover:underline">
+                      {useExistingAddress ? 'Digitar Novo Endereço' : 'Usar Endereço Salvo'}
+                    </button>
+                  )}
                 </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <input required type="text" className="col-span-2 w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Rua / Avenida" />
-                  <input required type="text" className="col-span-1 w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Número" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <input required type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Bairro" />
-                  <input required type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Cidade" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <input required type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="CEP" />
-                  <input required type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Estado" />
-                </div>
+                
+                {useExistingAddress && user?.addresses && user.addresses.length > 0 ? (
+                  <select
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold"
+                    value={selectedAddressId}
+                    onChange={(e) => setSelectedAddressId(e.target.value)}
+                  >
+                    {user.addresses.map((addr: any) => (
+                      <option key={addr.id} value={addr.id}>
+                        {addr.rua}, {addr.numero} - {addr.bairro}, {addr.cidade} - {addr.estado} CEP: {addr.cep}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-3 gap-4">
+                      <input required={!useExistingAddress} name="rua" value={formData.rua} onChange={handleChange} type="text" className="col-span-2 w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Rua / Avenida" />
+                      <input required={!useExistingAddress} name="numero" value={formData.numero} onChange={handleChange} type="text" className="col-span-1 w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Número" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <input required={!useExistingAddress} name="bairro" value={formData.bairro} onChange={handleChange} type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Bairro" />
+                      <input required={!useExistingAddress} name="cidade" value={formData.cidade} onChange={handleChange} type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Cidade" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <input required={!useExistingAddress} name="cep" value={formData.cep} onChange={handleChange} type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="CEP" />
+                      <input required={!useExistingAddress} name="estado" value={formData.estado} onChange={handleChange} type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Estado" />
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Payment */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2">
-                  <CreditCard size={14} className="text-gold" /> Pagamento
+                  <CreditCard size={14} className="text-gold" /> Pagamento (Simulação com Stripe)
                 </div>
-                <input required type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Número do Cartão" />
+                <input required name="cartao" value={formData.cartao} onChange={handleChange} type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Número do Cartão" />
                 <div className="grid grid-cols-2 gap-4">
-                  <input required type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="MM/AA" />
-                  <input required type="password" title="CVV" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="CVV" />
+                  <input required name="validade" value={formData.validade} onChange={handleChange} type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="MM/AA" />
+                  <input required name="cvv" value={formData.cvv} onChange={handleChange} type="password" title="CVV" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="CVV" />
                 </div>
               </div>
 
@@ -93,9 +227,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                 </div>
                 <button
                   type="submit"
-                  className="bg-black text-white px-10 py-5 text-xs font-black uppercase tracking-[0.2em] rounded-xl hover:bg-gold transition-all shadow-xl active:scale-95"
+                  disabled={isProcessing}
+                  className="bg-black text-white px-10 py-5 text-xs font-black uppercase tracking-[0.2em] rounded-xl hover:bg-gold transition-all shadow-xl active:scale-95 disabled:opacity-50 flex items-center gap-2"
                 >
-                  Finalizar Pedido
+                  {isProcessing ? 'Processando...' : 'Finalizar Pedido'}
                 </button>
               </div>
             </form>
@@ -121,3 +256,4 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
     </div>
   );
 };
+

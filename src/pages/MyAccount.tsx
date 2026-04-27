@@ -1,4 +1,5 @@
 import React from 'react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
@@ -59,14 +60,14 @@ const Orders = () => {
       
       if (data && data.length > 0) {
         setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'entregue' } : o));
-        alert('Entrega confirmada com sucesso!');
+        toast.success('Entrega confirmada com sucesso!');
       } else {
         console.warn('Update executado mas zero linhas afetadas. Verifique se o ID existe e se o RLS permite update pelo cliente.');
-        alert('O pedido não pôde ser atualizado. Verifique se você é o dono deste pedido.');
+        toast.error('O pedido não pôde ser atualizado. Verifique se você é o dono deste pedido.');
       }
     } catch (err: any) {
       console.error('Erro capturado no catch de confirmação:', err);
-      alert('Erro ao confirmar entrega: ' + (err.message || 'Erro desconhecido'));
+      toast.error('Erro ao confirmar entrega: ' + (err.message || 'Erro desconhecido'));
     } finally {
       setUpdatingId(null);
     }
@@ -100,9 +101,11 @@ const Orders = () => {
                   <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
                       ['enviado', 'entregue'].includes(order.status) 
                         ? 'bg-green-100 text-green-700' 
-                        : 'bg-yellow-100 text-yellow-700'
+                        : order.status === 'em_separacao'
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-yellow-100 text-yellow-700'
                   }`}>
-                    {order.status || 'recebido'}
+                    {order.status === 'em_separacao' ? 'Em Separação' : (order.status || 'recebido')}
                   </span>
                 </div>
               </div>
@@ -295,7 +298,7 @@ const Addresses = () => {
       await removeAddress(index);
     } catch (err) {
       console.error(err);
-      alert('Erro ao remover endereço');
+      toast.error('Erro ao remover endereço');
     }
   };
 

@@ -32,14 +32,51 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
     { 
       name: 'Roupas', 
       path: '/catalogo?cat=roupas',
-      sublinks: categories.map(cat => ({ 
-        name: cat.nome, 
-        path: `/catalogo?cat=${cat.slug}` 
-      }))
+      sublinks: categories
+        .filter(cat => !cat.tipo_produto || cat.tipo_produto === 'Roupas')
+        .map(cat => ({ 
+          name: cat.nome, 
+          path: `/catalogo?cat=${cat.slug}` 
+        }))
+    },
+    { 
+      name: 'Calçados', 
+      path: '/catalogo?cat=calcados',
+      sublinks: categories
+        .filter(cat => cat.tipo_produto === 'Calçados')
+        .map(cat => ({ 
+          name: cat.nome, 
+          path: `/catalogo?cat=${cat.slug}` 
+        }))
+    },
+    { 
+      name: 'Acessórios', 
+      path: '/catalogo?cat=acessorios',
+      sublinks: categories
+        .filter(cat => cat.tipo_produto === 'Acessórios')
+        .map(cat => ({ 
+          name: cat.nome, 
+          path: `/catalogo?cat=${cat.slug}` 
+        }))
     },
     { name: 'Sobre', path: '/sobre' },
     { name: 'Contato', path: '/contato' },
   ];
+
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
+
+  const toggleSubmenu = (path: string) => {
+    setOpenSubmenu(openSubmenu === path ? null : path);
+  };
+
+  const handleMobileNavClick = (path: string, hasSublinks: boolean) => {
+    if (hasSublinks) {
+      toggleSubmenu(path);
+    } else {
+      setIsMobileMenuOpen(false);
+      navigate(path);
+    }
+  };
 
   const activePath = location.pathname;
 
@@ -48,10 +85,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10">
         <div className="flex justify-between items-center h-20">
           {/* Mobile menu button */}
-          <div className="flex items-center lg:hidden">
+          <div className="flex items-center lg:hidden flex-1">
             <button
               type="button"
-              className="text-gray-900 hover:text-gold transition-colors focus:outline-none"
+              className="p-2 -ml-2 text-gray-900 hover:text-gold transition-colors focus:outline-none"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               <Menu size={24} />
@@ -59,7 +96,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
           </div>
 
           {/* Logo */}
-          <div className="flex-1 flex justify-center lg:justify-start">
+          <div className="flex flex-1 justify-center lg:justify-start">
             <Link 
               to="/"
               className="flex-shrink-0 flex items-center cursor-pointer gap-3"
@@ -67,7 +104,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
               <img 
                 src="/favicon.png" 
                 alt="Logo" 
-                className="h-35 w-35 object-contain"
+                className="h-20 sm:h-35 w-auto object-contain transition-all"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
@@ -76,7 +113,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex lg:items-center lg:justify-center flex-1 space-x-8">
+          <div className="hidden lg:flex lg:items-center lg:justify-center flex-[2] space-x-8">
             {navLinks.map((link) => (
               <div key={link.path} className="relative group">
                 <Link
@@ -92,7 +129,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
                 </Link>
                 
                 {link.sublinks && (
-                  <div className="absolute top-full left-0 w-48 bg-white border border-gray-100 rounded-b-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 w-48 bg-white border border-gray-100 rounded-b-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
                     {link.sublinks.map(sub => (
                       <Link
                         key={sub.path}
@@ -109,13 +146,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
           </div>
 
           {/* Icons */}
-          <div className="flex items-center justify-end space-x-4 lg:space-x-6 flex-1">
+          <div className="flex items-center justify-end space-x-3 lg:space-x-6 flex-1">
             <div className="relative flex items-center">
               <AnimatePresence>
                 {isSearchOpen && (
                   <motion.form
                     initial={{ width: 0, opacity: 0 }}
-                    animate={{ width: 240, opacity: 1 }}
+                    animate={{ width: window.innerWidth < 640 ? 160 : 240, opacity: 1 }}
                     exit={{ width: 0, opacity: 0 }}
                     onSubmit={handleSearch}
                     className="absolute right-full mr-2"
@@ -123,10 +160,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
                     <input
                       autoFocus
                       type="text"
-                      placeholder="Buscar produtos..."
+                      placeholder="Buscar..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-100 rounded-full px-5 py-2 text-[11px] font-bold outline-none focus:border-gold transition-all"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-full px-4 py-2 text-[10px] sm:text-[11px] font-bold outline-none focus:border-gold transition-all"
                     />
                   </motion.form>
                 )}
@@ -138,16 +175,17 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
                 <Search size={22} strokeWidth={2} />
               </button>
             </div>
+            
             <Link 
               to="/minha-conta"
-              className="text-black hover:text-gold transition-colors hidden sm:block"
+              className="text-black hover:text-gold transition-colors hidden lg:block"
             >
               <User size={22} strokeWidth={2} />
             </Link>
             
             <button 
-              className="text-black hover:text-gold relative transition-colors"
-              onClick={() => {}} // TODO: Redirect to wishlist page
+              className="text-black hover:text-gold relative transition-colors hidden sm:block"
+              onClick={() => navigate('/minha-conta')}
             >
               <Heart size={22} strokeWidth={2} />
               {wishlist.length > 0 && (
@@ -158,7 +196,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
             </button>
             
             <button 
-              className="group cursor-pointer relative flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-full border border-gray-100 hover:border-gold transition-all"
+              className="group cursor-pointer relative flex items-center gap-2 bg-gray-50 p-2 sm:px-4 sm:py-2 rounded-full border border-gray-100 hover:border-gold transition-all"
               onClick={onCartClick}
             >
               <div className="relative">
@@ -169,7 +207,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
                   </span>
                 )}
               </div>
-              <span className="text-[11px] font-black text-black group-hover:text-gold transition-colors hidden sm:block">
+              <span className="text-[11px] font-black text-black group-hover:text-gold transition-colors hidden md:block">
                 R$ {cartTotal.toFixed(2).replace('.', ',')}
               </span>
             </button>
@@ -185,7 +223,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] lg:hidden"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] lg:hidden"
               onClick={() => setIsMobileMenuOpen(false)}
             />
             <motion.div
@@ -193,93 +231,135 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-full max-w-sm bg-white z-[70] lg:hidden shadow-2xl flex flex-col"
+              className="fixed inset-y-0 left-0 w-[85%] max-w-sm bg-white z-[70] lg:hidden shadow-2xl flex flex-col h-screen"
+              style={{ backgroundColor: '#ffffff' }}
             >
-              <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <div className="flex items-center justify-between p-6 border-b border-gray-100 h-24 bg-white">
                 <div className="flex items-center gap-3">
                   <img 
                     src="/favicon.png" 
                     alt="Logo" 
-                    className="h-16 w-16 object-contain"
+                    className="h-12 w-auto object-contain"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                     }}
                   />
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black tracking-tighter leading-none">MB</span>
+                    <span className="text-[10px] font-bold text-gold tracking-widest leading-none">IMPORTS</span>
+                  </div>
                 </div>
                 <button 
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-2 text-gray-400 hover:text-black transition-colors"
+                  className="p-3 text-gray-400 hover:text-black transition-colors rounded-full hover:bg-gray-50"
                 >
-                  <X size={24} />
+                  <X size={28} />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto px-6 py-8 space-y-6 bg-white">
                 {/* Search in Mobile Menu */}
-                <form onSubmit={handleSearch} className="mb-6">
+                <form onSubmit={handleSearch} className="mb-10">
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="Buscar no catálogo..."
+                      placeholder="O que você procura?"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-5 py-3 text-sm font-bold outline-none focus:border-gold transition-all"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 text-sm font-bold outline-none focus:border-gold transition-all"
                     />
-                    <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
-                      <Search size={18} />
+                    <button type="submit" className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400">
+                      <Search size={20} />
                     </button>
                   </div>
                 </form>
 
-                {navLinks.map((link) => (
-                  <div key={link.path} className="space-y-2">
-                    <Link
-                      to={link.path}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={`block py-4 text-xl font-black uppercase tracking-tight border-b border-gray-50 transition-colors ${
-                        activePath === link.path ? 'text-gold' : 'text-black'
-                      }`}
-                    >
-                      {link.name}
-                    </Link>
-                    {link.sublinks && (
-                      <div className="pl-6 space-y-2 pb-4">
-                        {link.sublinks.map(sub => (
-                          <Link
-                            key={sub.path}
-                            to={sub.path}
-                            onClick={() => setIsMobileMenuOpen(false)}
-                            className="block py-2 text-sm font-bold text-gray-400 uppercase tracking-widest hover:text-gold"
+                <div className="space-y-4">
+                  {navLinks.map((link) => (
+                    <div key={link.path} className="border-b border-gray-50 last:border-0 pb-2">
+                      <button
+                        onClick={() => handleMobileNavClick(link.path, !!link.sublinks)}
+                        className="w-full flex items-center justify-between py-4 group"
+                      >
+                        <span className={`text-2xl font-black uppercase tracking-tight transition-colors ${
+                          activePath === link.path ? 'text-gold' : 'text-black group-hover:text-gold'
+                        }`}>
+                          {link.name}
+                        </span>
+                        {link.sublinks && (
+                          <ChevronDown 
+                            size={24} 
+                            className={`transition-transform duration-300 ${openSubmenu === link.path ? 'rotate-180 text-gold' : 'text-gray-300'}`} 
+                          />
+                        )}
+                      </button>
+                      
+                      <AnimatePresence>
+                        {link.sublinks && openSubmenu === link.path && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
                           >
-                            {sub.name}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                            <div className="pl-6 pb-6 space-y-5 mt-2 border-l-2 border-gold/20">
+                              {link.sublinks.map(sub => (
+                                <Link
+                                  key={sub.path}
+                                  to={sub.path}
+                                  onClick={() => setIsMobileMenuOpen(false)}
+                                  className="block py-1 text-base font-bold text-gray-500 uppercase tracking-widest hover:text-gold transition-colors"
+                                >
+                                  {sub.name}
+                                </Link>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div className="p-6 border-t border-gray-100 bg-gray-50/50">
-                <Link
-                  to="/minha-conta"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center gap-3 font-bold text-black uppercase tracking-widest text-xs mb-8"
+              <div className="p-8 border-t border-gray-100 bg-white flex justify-around items-center">
+                <button
+                  onClick={() => { setIsMobileMenuOpen(false); navigate('/minha-conta'); }}
+                  className="flex flex-col items-center gap-2 group"
                 >
-                  <User size={20} className="text-gold" />
-                  Minha Conta
-                </Link>
-                
-                <div className="grid grid-cols-2 gap-4 text-center">
-                  <div className="flex flex-col gap-1 p-4 bg-white rounded-xl border border-gray-100">
-                    <span className="text-[10px] uppercase font-black text-gray-400 tracking-widest">Favoritos</span>
-                    <span className="font-black text-xl">{wishlist.length}</span>
+                  <div className="text-gray-400 group-hover:text-gold transition-all relative">
+                    <User size={32} strokeWidth={1.5} />
                   </div>
-                  <div className="flex flex-col gap-1 p-4 bg-white rounded-xl border border-gray-100">
-                    <span className="text-[10px] uppercase font-black text-gray-400 tracking-widest">Itens</span>
-                    <span className="font-black text-xl">{cartItemsCount}</span>
+                  <span className="text-[10px] uppercase font-black tracking-widest text-gray-400 group-hover:text-gold">Conta</span>
+                </button>
+
+                <button
+                  onClick={() => { setIsMobileMenuOpen(false); navigate('/minha-conta'); }}
+                  className="flex flex-col items-center gap-2 group"
+                >
+                  <div className="text-gray-400 group-hover:text-gold transition-all relative">
+                    <Heart size={32} strokeWidth={1.5} />
+                    {wishlist.length > 0 && (
+                      <span className="absolute top-0 right-0 w-3 h-3 bg-gold rounded-full border-2 border-white shadow-sm" />
+                    )}
                   </div>
-                </div>
+                  <span className="text-[10px] uppercase font-black tracking-widest text-gray-400 group-hover:text-gold">Favoritos</span>
+                </button>
+
+                <button
+                  onClick={() => { setIsMobileMenuOpen(false); onCartClick(); }}
+                  className="flex flex-col items-center gap-2 group"
+                >
+                  <div className="text-gray-400 group-hover:text-gold transition-all relative">
+                    <ShoppingBag size={32} strokeWidth={1.5} />
+                    {cartItemsCount > 0 && (
+                      <span className="absolute -top-1 -right-2 bg-black text-white text-[10px] px-1.5 py-0.5 rounded-md flex items-center justify-center font-black border-2 border-white shadow-md min-w-[20px]">
+                        {cartItemsCount}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] uppercase font-black tracking-widest text-gray-400 group-hover:text-gold">Carrinho</span>
+                </button>
               </div>
             </motion.div>
           </>
