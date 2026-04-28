@@ -36,7 +36,6 @@ export default async function handler(req: any, res: any) {
       ] : undefined,
       metadata: {
         pedidoId: pedidoId ? String(pedidoId) : '',
-        cart: JSON.stringify(items),
       },
       line_items: items.map((item: any) => ({
         price_data: {
