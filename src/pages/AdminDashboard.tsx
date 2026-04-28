@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useStore } from '../context/StoreContext';
 import { supabase } from '../lib/supabase';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, ShoppingBag, ListOrdered, Image as ImageIcon, Users, LogOut, ChevronRight, Database, BarChart3, Search, Trash2 } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, ListOrdered, Image as ImageIcon, Users, LogOut, ChevronRight, Database, BarChart3, Search, Trash2, Truck, Edit2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { 
   BarChart, 
@@ -1521,10 +1521,13 @@ const AdminCustomers = () => {
 const AdminBanners = () => {
   const { fetchBanners, banners } = useStore();
   const [loading, setLoading] = React.useState(false);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
   const [formData, setFormData] = React.useState({
     titulo: '',
     link: '',
     ativo: true,
+    data_inicio: '',
+    data_fim: ''
   });
   const [image, setImage] = React.useState<File | null>(null);
   const [preview, setPreview] = React.useState<string | null>(null);
@@ -1537,9 +1540,23 @@ const AdminBanners = () => {
     }
   };
 
+  const handleEdit = (banner: any) => {
+    setEditingId(banner.id);
+    setFormData({
+      titulo: banner.title || '',
+      link: banner.link || '',
+      ativo: banner.status === 'active',
+      data_inicio: banner.data_inicio ? new Date(banner.data_inicio).toISOString().slice(0, 16) : '',
+      data_fim: banner.data_fim ? new Date(banner.data_fim).toISOString().slice(0, 16) : ''
+    });
+    setPreview(banner.image);
+    setImage(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!image && !preview) return;
+    if (!editingId && !image) return toast.error('Selecione uma imagem');
     setLoading(true);
 
     try {
@@ -1553,20 +1570,39 @@ const AdminBanners = () => {
         imageUrl = publicUrl;
       }
 
-      const { error } = await supabase.from('banners_promo').insert([{
-        titulo: formData.titulo,
-        link: formData.link,
-        imagem_url: imageUrl,
-        ativo: formData.ativo
-      }]);
+      if (editingId) {
+        const updates: any = {
+          titulo: formData.titulo,
+          link: formData.link,
+          ativo: formData.ativo,
+          data_inicio: formData.data_inicio ? new Date(formData.data_inicio).toISOString() : null,
+          data_fim: formData.data_fim ? new Date(formData.data_fim).toISOString() : null
+        };
+        if (imageUrl) {
+          updates.imagem_url = imageUrl;
+        }
+        const { error } = await supabase.from('banners_promo').update(updates).eq('id', editingId);
+        if (error) throw error;
+        toast.success('Banner atualizado com sucesso!');
+      } else {
+        const { error } = await supabase.from('banners_promo').insert([{
+          titulo: formData.titulo,
+          link: formData.link,
+          imagem_url: imageUrl,
+          ativo: formData.ativo,
+          data_inicio: formData.data_inicio ? new Date(formData.data_inicio).toISOString() : null,
+          data_fim: formData.data_fim ? new Date(formData.data_fim).toISOString() : null
+        }]);
 
-      if (error) throw error;
+        if (error) throw error;
+        toast.success('Banner cadastrado com sucesso!');
+      }
       
-      setFormData({ titulo: '', link: '', ativo: true });
+      setEditingId(null);
+      setFormData({ titulo: '', link: '', ativo: true, data_inicio: '', data_fim: '' });
       setImage(null);
       setPreview(null);
       fetchBanners();
-      toast.success('Banner cadastrado com sucesso!');
     } catch (err) {
       console.error(err);
       toast.error('Erro ao salvar banner');
@@ -1641,30 +1677,68 @@ const AdminBanners = () => {
                   </>
                 )}
               </label>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block ml-1">Início (Opcional)</label>
+                  <input 
+                    type="datetime-local" 
+                    value={formData.data_inicio}
+                    onChange={e => setFormData({...formData, data_inicio: e.target.value})}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 font-bold text-xs"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block ml-1">Fim (Opcional)</label>
+                  <input 
+                    type="datetime-local" 
+                    value={formData.data_fim}
+                    onChange={e => setFormData({...formData, data_fim: e.target.value})}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 font-bold text-xs"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex justify-between items-center bg-gray-50 p-6 rounded-2xl border border-gray-100">
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${formData.ativo ? 'bg-green-500 border-green-500' : 'bg-white border-gray-200'}`}>
-                <input 
-                  type="checkbox" 
-                  className="hidden"
-                  checked={formData.ativo}
-                  onChange={e => setFormData({...formData, ativo: e.target.checked})}
-                />
-                {formData.ativo && <Database size={14} className="text-white" />}
+            <div className="flex justify-between items-center bg-gray-50 p-6 rounded-2xl border border-gray-100 mt-6 lg:col-span-2">
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${formData.ativo ? 'bg-green-500 border-green-500' : 'bg-white border-gray-200'}`}>
+                  <input 
+                    type="checkbox" 
+                    className="hidden"
+                    checked={formData.ativo}
+                    onChange={e => setFormData({...formData, ativo: e.target.checked})}
+                  />
+                  {formData.ativo && <Database size={14} className="text-white" />}
+                </div>
+                <span className="text-[11px] font-black uppercase tracking-widest text-gray-400 group-hover:text-black transition-colors">Banner Ativo</span>
+              </label>
+              
+              <div className="flex gap-4">
+                {editingId && (
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setEditingId(null);
+                      setFormData({ titulo: '', link: '', ativo: true, data_inicio: '', data_fim: '' });
+                      setImage(null);
+                      setPreview(null);
+                    }}
+                    className="bg-gray-200 text-gray-600 px-6 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-300 transition-all shadow-xl"
+                  >
+                    Cancelar
+                  </button>
+                )}
+                <button 
+                  type="submit" 
+                  disabled={loading || (!editingId && !preview)}
+                  className="bg-black text-white px-10 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gold transition-all shadow-xl disabled:opacity-50"
+                >
+                  {loading ? 'Salvando...' : editingId ? 'Salvar Alterações' : 'Adicionar Banner'}
+                </button>
               </div>
-              <span className="text-[11px] font-black uppercase tracking-widest text-gray-400 group-hover:text-black transition-colors">Banner Ativo</span>
-            </label>
-            <button 
-              type="submit" 
-              disabled={loading || !preview}
-              className="bg-black text-white px-10 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gold transition-all shadow-xl disabled:opacity-50"
-            >
-              {loading ? 'Salvando...' : 'Adicionar Banner'}
-            </button>
-          </div>
+            </div>
         </form>
       </div>
 
@@ -1678,24 +1752,243 @@ const AdminBanners = () => {
             <div className="p-6 space-y-4">
               <div>
                 <h4 className="font-black text-black uppercase tracking-tight">{banner.title || 'Sem Título'}</h4>
+                {(banner.data_inicio || banner.data_fim) && (
+                  <p className="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded-lg mt-2 inline-block font-bold">
+                    📅 Agendado {banner.data_inicio ? `de ${new Date(banner.data_inicio).toLocaleDateString()}` : ''} {banner.data_fim ? `até ${new Date(banner.data_fim).toLocaleDateString()}` : ''}
+                  </p>
+                )}
               </div>
               <div className="flex justify-between items-center pt-4 border-t border-gray-50">
                 <button 
+                  type="button"
                   onClick={() => toggleAtivo(banner.id, banner.status === 'active')}
                   className={`${banner.status === 'active' ? 'text-green-600 bg-green-50' : 'text-red-400 bg-red-50'} px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest`}
                 >
                   {banner.status === 'active' ? 'Ativo' : 'Inativo'}
                 </button>
-                <button 
-                  onClick={() => deleteBanner(banner.id)}
-                  className="text-red-400 hover:text-red-600 font-black text-[9px] uppercase tracking-widest transition-colors"
-                >
-                  Excluir
-                </button>
+                <div className="flex gap-4">
+                  <button 
+                    type="button"
+                    onClick={() => handleEdit(banner)}
+                    className="text-blue-400 hover:text-blue-600 font-black text-[9px] uppercase tracking-widest transition-colors"
+                  >
+                    Editar
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => deleteBanner(banner.id)}
+                    className="text-red-400 hover:text-red-600 font-black text-[9px] uppercase tracking-widest transition-colors"
+                  >
+                    Excluir
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+};
+
+const AdminShipping = () => {
+  const [shippingRules, setShippingRules] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [editingId, setEditingId] = React.useState<number | null>(null);
+  const [formData, setFormData] = React.useState({
+    zip_start: '',
+    zip_end: '',
+    carrier: '',
+    price: '',
+    delivery_time: '',
+    priority: '999',
+    cep_city: ''
+  });
+
+  const fetchRules = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('shipping_rules').select('*').order('priority', { ascending: true });
+    if (!error && data) setShippingRules(data);
+    setLoading(false);
+  }
+
+  React.useEffect(() => {
+    fetchRules();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const payload = {
+        zip_start: parseInt(formData.zip_start),
+        zip_end: parseInt(formData.zip_end),
+        carrier: formData.carrier,
+        price: parseFloat(formData.price),
+        delivery_time: parseInt(formData.delivery_time),
+        priority: parseInt(formData.priority) || 999,
+        cep_city: formData.cep_city || null
+      };
+
+      if (editingId) {
+        const { error } = await supabase.from('shipping_rules').update(payload).eq('id', editingId);
+        if (error) throw error;
+        toast.success('Regra atualizada com sucesso');
+      } else {
+        const { error } = await supabase.from('shipping_rules').insert([payload]);
+        if (error) throw error;
+        toast.success('Regra criada com sucesso');
+      }
+      setEditingId(null);
+      setFormData({
+        zip_start: '', zip_end: '', carrier: '', price: '', delivery_time: '', priority: '999', cep_city: ''
+      });
+      fetchRules();
+    } catch(err) {
+       toast.error('Erro ao salvar regra');
+    } finally {
+       setLoading(false);
+    }
+  }
+
+  const handleEdit = (r: any) => {
+    setEditingId(r.id);
+    setFormData({
+      zip_start: r.zip_start.toString(),
+      zip_end: r.zip_end.toString(),
+      carrier: r.carrier,
+      price: r.price.toString(),
+      delivery_time: r.delivery_time.toString(),
+      priority: r.priority.toString(),
+      cep_city: r.cep_city || ''
+    });
+  }
+
+  const handleDelete = async (id: number) => {
+    try {
+       const { error } = await supabase.from('shipping_rules').delete().eq('id', id);
+       if (error) throw error;
+       toast.success('Regra removida');
+       fetchRules();
+    } catch (e) {
+       toast.error('Erro ao remover regra');
+    }
+  }
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex justify-between items-center bg-white p-8 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
+        <div className="relative z-10">
+          <h2 className="text-3xl font-black text-black uppercase tracking-tighter">Regras de Frete</h2>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mt-2">Gerencie transportadoras, prazos e valores</p>
+        </div>
+        <Truck size={48} className="text-gray-50 absolute right-8 -bottom-4 opacity-50 transform rotate-[-15deg] scale-150 pointer-events-none" />
+      </div>
+
+      <div className="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm space-y-6">
+        <h3 className="text-xs font-black uppercase tracking-widest text-black flex items-center gap-2">
+          {editingId ? 'Editar Regra' : 'Nova Regra'}
+        </h3>
+        
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block ml-1">CEP Início</label>
+            <input required type="number" value={formData.zip_start} onChange={e => setFormData({...formData, zip_start: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold text-xs" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block ml-1">CEP Fim</label>
+            <input required type="number" value={formData.zip_end} onChange={e => setFormData({...formData, zip_end: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold text-xs" />
+          </div>
+          <div className="space-y-2 lg:col-span-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block ml-1">Transportadora / Operador</label>
+            <input required type="text" value={formData.carrier} onChange={e => setFormData({...formData, carrier: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold text-xs" placeholder="Ex: Correios PAC" />
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block ml-1">Preço (R$)</label>
+            <input required type="number" step="0.01" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold text-xs" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block ml-1">Prazo (Dias)</label>
+            <input required type="number" value={formData.delivery_time} onChange={e => setFormData({...formData, delivery_time: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold text-xs" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block ml-1">Prioridade Exibição</label>
+            <input type="number" value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold text-xs" placeholder="1 = primeiro" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block ml-1">Cidade do CEP</label>
+            <input type="text" value={formData.cep_city} onChange={e => setFormData({...formData, cep_city: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold text-xs" placeholder="Opcional" />
+          </div>
+
+          <div className="lg:col-span-4 flex items-center justify-end gap-2 mt-4">
+            {editingId && (
+              <button type="button" onClick={() => {
+                setEditingId(null);
+                setFormData({ zip_start: '', zip_end: '', carrier: '', price: '', delivery_time: '', priority: '999', cep_city: '' });
+              }} className="px-6 py-4 bg-gray-100 text-gray-500 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-gray-200">
+                Cancelar
+              </button>
+            )}
+            <button type="submit" disabled={loading} className="px-8 py-4 bg-black text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-gold transition-all">
+              {editingId ? 'Salvar Alterações' : 'Adicionar Regra'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-gray-50 bg-gray-50/50">
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">CEP RANGE</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Transportadora</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Valor / Prazo</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Ordem</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shippingRules.map((rule) => (
+                <tr key={rule.id} className="border-b border-gray-50 hover:bg-gray-50/30 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="font-bold text-sm text-black">
+                      {rule.zip_start} <span className="text-gold mx-2">→</span> {rule.zip_end}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 uppercase text-[10px] font-black text-gray-400 tracking-widest">
+                    {rule.carrier}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="font-black text-sm">R$ {Number(rule.price).toFixed(2).replace('.', ',')}</div>
+                    <div className="text-[10px] font-bold text-gray-400 uppercase">{rule.delivery_time} {rule.delivery_time === 1 ? 'dia útil' : 'dias úteis'}</div>
+                  </td>
+                  <td className="px-6 py-4 font-bold text-xs text-gray-500">
+                    {rule.priority}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex justify-end gap-2">
+                       <button onClick={() => handleEdit(rule)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg">
+                          <Edit2 size={16} />
+                       </button>
+                       <button onClick={() => handleDelete(rule.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                          <Trash2 size={16} />
+                       </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {shippingRules.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                    Nenhuma regra de frete cadastrada
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -1712,6 +2005,7 @@ export const AdminDashboard: React.FC = () => {
     { name: 'Produtos', icon: <ShoppingBag size={20} />, path: '/admin/produtos' },
     { name: 'Categorias', icon: <ListOrdered size={20} />, path: '/admin/categorias' },
     { name: 'Pedidos', icon: <ListOrdered size={20} />, path: '/admin/pedidos' },
+    { name: 'Frete', icon: <Truck size={20} />, path: '/admin/frete' },
     { name: 'Relatórios', icon: <BarChart3 size={20} />, path: '/admin/relatorios' },
     { name: 'Banners', icon: <ImageIcon size={20} />, path: '/admin/banners' },
     { name: 'Clientes', icon: <Users size={20} />, path: '/admin/clientes' },
@@ -1759,6 +2053,7 @@ export const AdminDashboard: React.FC = () => {
           <Route path="produtos" element={<AdminProducts />} />
           <Route path="categorias" element={<AdminCategories />} />
           <Route path="pedidos" element={<AdminOrders />} />
+          <Route path="frete" element={<AdminShipping />} />
           <Route path="relatorios" element={<AdminReports />} />
           <Route path="banners" element={<AdminBanners />} />
           <Route path="clientes" element={<AdminCustomers />} />

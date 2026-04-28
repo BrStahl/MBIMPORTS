@@ -44,6 +44,8 @@ export type Banner = {
   subtitle?: string;
   link?: string;
   status: 'active' | 'inactive';
+  data_inicio?: string | null;
+  data_fim?: string | null;
 };
 
 export type Category = {

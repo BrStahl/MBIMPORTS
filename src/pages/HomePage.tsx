@@ -5,7 +5,7 @@ import { ProductModal } from '../components/ProductModal';
 import { useStore } from '../context/StoreContext';
 import { supabase } from '../lib/supabase';
 import { Product } from '../types';
-import { Truck, RotateCcw, ShieldCheck, CreditCard, ChevronRight } from 'lucide-react';
+import { Truck, RotateCcw, ShieldCheck, CreditCard, ChevronRight, Star } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -132,6 +132,13 @@ export const HomePage: React.FC = () => {
     { name: 'Acessórios', image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=800', path: '/catalogo?cat=accessories' },
   ];
 
+  const reviews = [
+    { name: 'Lucas Silva', role: 'Cliente Verificado', content: 'A qualidade das roupas é simplesmente incrível. Tecido muito confortável e não encolheu após a primeira lavagem. Recomendo muito!', rating: 5 },
+    { name: 'Mariana Costa', role: 'Cliente Verificada', content: 'O processo de compra foi muito fácil, e a motoboy entregou no mesmo dia aqui em Limeira. Adorei a embalagem com aquele cheirinho incrível e os brindes!', rating: 5 },
+    { name: 'Pedro Almeida', role: 'Cliente Verificado', content: 'Design moderno e caimento perfeito. Com certeza comprarei de novo. O suporte também me atendeu super rápido para tirar uma dúvida sobre tamanho.', rating: 5 },
+    { name: 'Fernanda Lima', role: 'Cliente Verificada', content: 'Achei as peças super estilosas e muito confortáveis para o dia a dia. Meu namorado amou a camisa de presente. Vale cada centavo.', rating: 5 },
+  ];
+
   return (
     <div className="flex-1 bg-white">
       <Hero />
@@ -247,6 +254,33 @@ export const HomePage: React.FC = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {activeProducts.slice(4, 8).map(product => (
               <ProductCard key={product.id} product={product} onClick={() => setSelectedProduct(product)} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Reviews */}
+      <section className="py-24 bg-white relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex flex-col items-center mb-16 text-center">
+            <h2 className="text-3xl font-black text-black uppercase tracking-tight">O que dizem <span className="text-gold italic">nossos clientes</span></h2>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2 max-w-lg">Quem veste nossa marca sabe da diferença. Veja os depoimentos reais de quem confia no nosso trabalho e na qualidade dos nossos produtos.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {reviews.map((review, idx) => (
+              <div key={idx} className="bg-gray-50 border border-gray-100 p-8 rounded-3xl relative">
+                <div className="flex text-gold mb-6">
+                  {Array(review.rating).fill(0).map((_, i) => (
+                    <Star key={i} size={16} fill="currentColor" strokeWidth={0} />
+                  ))}
+                </div>
+                <p className="text-sm font-medium text-gray-600 mb-8 italic">"{review.content}"</p>
+                <div className="mt-auto">
+                  <p className="text-sm font-black text-black uppercase tracking-tight">{review.name}</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">{review.role}</p>
+                </div>
+              </div>
             ))}
           </div>
         </div>

@@ -103,7 +103,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         title: b.titulo,
         subtitle: b.subtitulo,
         link: b.link,
-        status: b.ativo ? 'active' : 'inactive'
+        status: b.ativo ? 'active' : 'inactive',
+        data_inicio: b.data_inicio,
+        data_fim: b.data_fim
       })) as Banner[]);
     } catch (error) {
       console.error("Erro ao buscar banners:", error);

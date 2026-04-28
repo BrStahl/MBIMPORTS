@@ -7,8 +7,17 @@ import { motion, AnimatePresence } from 'motion/react';
 export const Hero: React.FC = () => {
   const navigate = useNavigate();
   const { banners, loading } = useStore();
-  const activeBanners = banners.filter(b => b.status === 'active');
   const [current, setCurrent] = useState(0);
+
+  const activeBanners = banners.filter(b => {
+    if (b.status !== 'active') return false;
+    
+    const now = new Date();
+    if (b.data_inicio && new Date(b.data_inicio) > now) return false;
+    if (b.data_fim && new Date(b.data_fim) < now) return false;
+    
+    return true;
+  });
 
   useEffect(() => {
     if (activeBanners.length <= 1) return;
