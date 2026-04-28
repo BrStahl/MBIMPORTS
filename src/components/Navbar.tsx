@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingBag, Heart, Menu, X, User, Search, ChevronDown } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
+import { useDebounce } from '../hooks/useDebounce';
 import { motion, AnimatePresence } from 'motion/react';
 
 type NavbarProps = {
@@ -10,22 +11,32 @@ type NavbarProps = {
 };
 
 export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
-  const { cartItemsCount, wishlist, cartTotal, categories } = useStore();
+  const { cartItemsCount, wishlist, cartTotal, categories, products } = useStore();
   const { user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handleSearch = (e?: React.FormEvent) => {
+  const handleSearch = (e?: React.FormEvent, queryOverride?: string) => {
     e?.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/catalogo?q=${encodeURIComponent(searchQuery.trim())}`);
+    const query = queryOverride || searchQuery;
+    if (query.trim()) {
+      navigate(`/catalogo?q=${encodeURIComponent(query.trim())}`);
       setIsSearchOpen(false);
       setSearchQuery('');
     }
   };
+
+  const suggestions = React.useMemo(() => {
+    if (!debouncedSearchQuery.trim()) return [];
+    const lowerQuery = debouncedSearchQuery.toLowerCase();
+    return products
+      .filter(p => p.name.toLowerCase().includes(lowerQuery) || p.description?.toLowerCase().includes(lowerQuery))
+      .slice(0, 5);
+  }, [debouncedSearchQuery, products]);
 
   const navLinks = [
     { name: 'Início', path: '/' },
@@ -104,7 +115,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
               <img 
                 src="/favicon.png" 
                 alt="Logo" 
-                className="h-20 sm:h-35 w-auto object-contain transition-all"
+                className="h-20 sm:h-25 w-auto object-contain transition-all"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
@@ -152,19 +163,41 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
                 {isSearchOpen && (
                   <motion.form
                     initial={{ width: 0, opacity: 0 }}
-                    animate={{ width: window.innerWidth < 640 ? 160 : 240, opacity: 1 }}
+                    animate={{ width: window.innerWidth < 640 ? 160 : 320, opacity: 1 }}
                     exit={{ width: 0, opacity: 0 }}
                     onSubmit={handleSearch}
                     className="absolute right-full mr-2"
                   >
-                    <input
-                      autoFocus
-                      type="text"
-                      placeholder="Buscar..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-100 rounded-full px-4 py-2 text-[10px] sm:text-[11px] font-bold outline-none focus:border-gold transition-all"
-                    />
+                    <div className="relative">
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="Buscar produtos..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-full px-4 py-2 text-[10px] sm:text-[11px] font-bold outline-none focus:border-gold transition-all"
+                      />
+                      {suggestions.length > 0 && isSearchOpen && (
+                        <div className="absolute top-full mt-2 w-full bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden z-[100]">
+                          {suggestions.map(item => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => {
+                                handleSearch(undefined, item.name);
+                              }}
+                              className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
+                            >
+                              <img src={item.images?.[0]} alt={item.name} className="w-8 h-8 object-cover rounded-md" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-bold text-black truncate">{item.name}</p>
+                                <p className="text-[10px] font-bold text-gold">R$ {item.price.toFixed(2).replace('.', ',')}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </motion.form>
                 )}
               </AnimatePresence>
@@ -244,10 +277,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
                       e.currentTarget.style.display = 'none';
                     }}
                   />
-                  <div className="flex flex-col">
-                    <span className="text-xs font-black tracking-tighter leading-none">MB</span>
-                    <span className="text-[10px] font-bold text-gold tracking-widest leading-none">IMPORTS</span>
-                  </div>
                 </div>
                 <button 
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -268,9 +297,30 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 text-sm font-bold outline-none focus:border-gold transition-all"
                     />
-                    <button type="submit" className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <button type="submit" className="absolute right-5 top-[28px] -translate-y-1/2 text-gray-400">
                       <Search size={20} />
                     </button>
+                    {suggestions.length > 0 && (
+                      <div className="absolute top-full mt-2 w-full bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden z-[100]">
+                        {suggestions.map(item => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              handleSearch(undefined, item.name);
+                              setIsMobileMenuOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
+                          >
+                            <img src={item.images?.[0]} alt={item.name} className="w-10 h-10 object-cover rounded-md" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-black truncate">{item.name}</p>
+                              <p className="text-xs font-bold text-gold">R$ {item.price.toFixed(2).replace('.', ',')}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </form>
 

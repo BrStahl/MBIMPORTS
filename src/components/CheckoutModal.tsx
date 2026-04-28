@@ -56,72 +56,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
     setIsProcessing(true);
 
     try {
-      let clienteId = user?.uid;
-      
-      // Se não estiver logado, idealmente seria interessante um fallback, mas para esta simulação:
-      if (!clienteId && user) {
-         clienteId = user.uid;
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cart.map(item => ({
+            name: item.name,
+            image: item.image || item.imagem_url,
+            price: item.price,
+            quantity: item.quantity,
+            color: item.color,
+            size: item.size
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Erro ao gerar sessão Stripe.');
       }
 
-      // 1. Criar o Pedido
-      let finalAddress = '';
-      if (useExistingAddress && selectedAddressId && user?.addresses) {
-        const addr = user.addresses.find((a: any) => a.id.toString() === selectedAddressId);
-        if (addr) {
-          finalAddress = `${addr.rua}, ${addr.numero} - ${addr.bairro}, ${addr.cidade} - ${addr.estado} CEP: ${addr.cep}`;
-        }
-      }
-      
-      if (!finalAddress) {
-        finalAddress = `${formData.rua}, ${formData.numero} - ${formData.bairro}, ${formData.cidade} - ${formData.estado} CEP: ${formData.cep}`;
-      }
-
-      const pedidoData: any = {
-        status: 'em_separacao',
-        valor_total: cartTotal,
-        total: cartTotal,
-        endereco_entrega: finalAddress
-      };
-
-      if (clienteId) {
-        pedidoData.cliente_id = clienteId;
-      }
-
-      const { data: pedido, error: pedidoError } = await supabase
-        .from('pedidos')
-        .insert([pedidoData])
-        .select()
-        .single();
-
-      if (pedidoError) throw pedidoError;
-
-      // 2. Inserir itens do pedido
-      const itensData = cart.map((item: any) => ({
-        pedido_id: pedido.id,
-        produto_id: item.id || item.productId, // Fallback caso a propriedade mude
-        quantidade: item.quantity,
-        preco_unitario: item.price,
-        subtotal: Number(item.quantity) * Number(item.price),
-        nome_produto: item.name,
-        cor: item.color || '',
-        tamanho: item.size || ''
-      }));
-
-      const { error: itensError } = await supabase
-        .from('itens_pedidos')
-        .insert(itensData);
-
-      if (itensError) throw itensError;
-
-      setTimeout(() => {
-        setStep(2);
-        clearCart();
-        setIsProcessing(false);
-      }, 1500); // simulate processing
+      const session = await response.json();
+      window.location.href = session.url;
       
     } catch (error: any) {
       console.error('Erro ao finalizar pedido:', error);
-      toast.error('Erro ao processar pagamento. Tente novamente.');
+      toast.error('Erro ao processar pagamento. ' + (error.message || ''));
       setIsProcessing(false);
     }
   };

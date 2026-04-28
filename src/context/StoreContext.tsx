@@ -101,6 +101,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         id: b.id,
         image: b.imagem_url,
         title: b.titulo,
+        subtitle: b.subtitulo,
         link: b.link,
         status: b.ativo ? 'active' : 'inactive'
       })) as Banner[]);

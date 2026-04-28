@@ -29,31 +29,32 @@ export const Hero: React.FC = () => {
 
   if (activeBanners.length === 0) {
     return (
-      <div className="relative h-[80vh] min-h-[600px] flex items-center overflow-hidden bg-white">
+      <div className="relative h-[80vh] min-h-[600px] flex items-center overflow-hidden bg-black">
         <div className="absolute inset-0 z-0">
           <img
-            className="w-full h-full object-cover object-[center_20%] opacity-20 grayscale transition-opacity hover:opacity-30 duration-1000"
+            className="w-full h-full object-cover object-[center_30%] opacity-40 transition-opacity duration-1000"
             src="https://images.unsplash.com/photo-1490114538077-0a7f8cb49871?auto=format&fit=crop&q=80&w=2000"
             alt="Fashion Lifestyle"
+            referrerPolicy="no-referrer"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
         </div>
         <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-2xl">
-            <span className="inline-block px-4 py-1.5 bg-black text-white text-[10px] font-black uppercase tracking-[0.3em] mb-8 rounded-full">
-              New Collection 2024
+            <span className="inline-block px-4 py-1.5 bg-gold text-black text-[10px] font-black uppercase tracking-[0.3em] mb-8 rounded-full">
+              Coleção 2024
             </span>
-            <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black text-black leading-[0.9] tracking-tighter mb-8 items-end">
-              ESSENTIAL <br />
-              <span className="text-gold italic block mt-2">MB IMPORTS</span>
+            <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black text-white leading-[0.9] tracking-tighter mb-8 italic">
+              VIVA A <br />
+              <span className="text-gold block mt-2">EXCLUSIVIDADE</span>
             </h1>
-            <p className="text-gray-500 text-lg sm:text-xl max-w-lg mb-12 font-medium leading-relaxed uppercase tracking-tight">
+            <p className="text-gray-300 text-lg sm:text-xl max-w-lg mb-12 font-medium leading-relaxed uppercase tracking-tight">
               Curadoria excepcional de moda masculina premium para quem não aceita o básico.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <button 
                 onClick={() => navigate('/catalogo')}
-                className="bg-black text-white px-12 py-6 font-black uppercase tracking-widest text-xs hover:bg-gold transition-all shadow-2xl flex items-center justify-center gap-3 active:scale-95 group"
+                className="bg-gold text-black px-12 py-6 font-black uppercase tracking-widest text-xs hover:bg-black hover:text-white transition-all shadow-2xl flex items-center justify-center gap-3 active:scale-95 group"
               >
                 Comprar Agora
                 <ArrowRight size={18} className="transition-transform group-hover:translate-x-2" />
@@ -74,14 +75,15 @@ export const Hero: React.FC = () => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 1 }}
-          className="absolute inset-0"
+          className="absolute inset-0 z-0 border-none"
         >
           <img
-            src={activeBanners[current].image}
-            className="w-full h-full object-cover opacity-60"
+            src={activeBanners[current].image || "https://images.unsplash.com/photo-1490114538077-0a7f8cb49871?auto=format&fit=crop&q=80&w=2000"}
+            className="w-full h-full object-cover object-[center_30%] opacity-40 transition-opacity duration-1000"
             alt={activeBanners[current].title || 'Banner'}
+            referrerPolicy="no-referrer"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
         </motion.div>
       </AnimatePresence>
 
@@ -103,14 +105,20 @@ export const Hero: React.FC = () => {
                 </React.Fragment>
               )) || 'EXCLUSIDADE EM CADA DETALHE'}
             </h1>
+
+            {activeBanners[current].subtitle && (
+              <p className="text-white/80 text-lg md:text-xl font-medium mb-12 uppercase tracking-tight max-w-lg">
+                {activeBanners[current].subtitle}
+              </p>
+            )}
             
             {activeBanners[current].link ? (
               <div className="flex flex-col sm:flex-row gap-4">
                 <button 
                   onClick={() => navigate(activeBanners[current].link!)}
-                  className="bg-gold text-white px-12 py-6 font-black uppercase tracking-widest text-xs hover:bg-white hover:text-black transition-all shadow-2xl flex items-center justify-center gap-3 active:scale-95 group"
+                  className="bg-gold text-black px-12 py-6 font-black uppercase tracking-widest text-xs hover:bg-white hover:text-black transition-all shadow-2xl flex items-center justify-center gap-3 active:scale-95 group"
                 >
-                  Explorar Coleção
+                  Comprar Agora
                   <ArrowRight size={18} className="transition-transform group-hover:translate-x-2" />
                 </button>
                 <button 
@@ -123,7 +131,7 @@ export const Hero: React.FC = () => {
             ) : (
               <button 
                 onClick={() => navigate('/catalogo')}
-                className="bg-gold text-white px-12 py-6 font-black uppercase tracking-widest text-xs hover:bg-white hover:text-black transition-all shadow-2xl flex items-center justify-center gap-3 active:scale-95 group"
+                className="bg-gold text-black px-12 py-6 font-black uppercase tracking-widest text-xs hover:bg-white hover:text-black transition-all shadow-2xl flex items-center justify-center gap-3 active:scale-95 group"
               >
                 Comprar Agora
                 <ArrowRight size={18} className="transition-transform group-hover:translate-x-2" />

@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --color-gold: #D4AF37;
-  --color-gold-hover: #b5952f;
+  --color-gold: #facc15;
+  --color-gold-hover: #eab308;
 }
 
 @layer utilities {
