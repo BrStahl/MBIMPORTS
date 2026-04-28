@@ -17,9 +17,10 @@ import { useNavigate } from 'react-router-dom';
 type CartDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
+  onCheckout: () => void;
 };
 
-export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
+export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onCheckout }) => {
   const { cart, removeFromCart, updateQuantity, cartTotal } = useStore();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const navigate = useNavigate();
@@ -35,13 +36,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
         body: JSON.stringify({ items: cart }),
       });
       
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON response received:', text);
-        throw new Error('Erro no servidor: Resposta inválida. Verifique se o backend está configurado.');
-      }
-
       const data = await response.json();
       
       if (!response.ok) {
@@ -203,18 +197,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                 </p>
                 <div className="flex flex-col gap-3">
                   <button
-                    onClick={handleStripeCheckout}
-                    disabled={isCheckingOut || cart.length === 0}
+                    onClick={onCheckout}
                     className="w-full flex items-center justify-center gap-2 rounded-xl bg-black px-6 py-5 text-xs font-black uppercase tracking-[0.2em] text-white shadow-xl hover:bg-gold transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isCheckingOut ? (
-                      <>
-                        <Loader2 size={18} className="animate-spin text-gold" />
-                        Processando...
-                      </>
-                    ) : (
-                      'Finalizar Pedido'
-                    )}
+                    Finalizar Pedido
                   </button>
                   <button 
                     onClick={handleContinueShopping}

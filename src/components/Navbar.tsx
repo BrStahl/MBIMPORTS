@@ -235,7 +235,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
               style={{ backgroundColor: '#ffffff' }}
             >
               <div className="flex items-center justify-between p-6 border-b border-gray-100 h-24 bg-white">
-                <div className="flex items-center">
+                <div className="flex items-center gap-3">
                   <img 
                     src="/favicon.png" 
                     alt="Logo" 
@@ -244,6 +244,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
                       e.currentTarget.style.display = 'none';
                     }}
                   />
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black tracking-tighter leading-none">MB</span>
+                    <span className="text-[10px] font-bold text-gold tracking-widest leading-none">IMPORTS</span>
+                  </div>
                 </div>
                 <button 
                   onClick={() => setIsMobileMenuOpen(false)}
