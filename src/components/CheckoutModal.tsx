@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, CheckCircle, ShieldCheck, CreditCard, MapPin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, CheckCircle, ShieldCheck, CreditCard, MapPin, Package, Loader2 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -18,7 +18,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
   const [useExistingAddress, setUseExistingAddress] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState('');
 
-  React.useEffect(() => {
+  // Shipping State
+  const [shippingOptions, setShippingOptions] = useState<any[]>([]);
+  const [loadingShipping, setLoadingShipping] = useState(false);
+  const [selectedShipping, setSelectedShipping] = useState<number>(0);
+
+  useEffect(() => {
     if (user && user.addresses && user.addresses.length > 0) {
       setUseExistingAddress(true);
       setSelectedAddressId(user.addresses[0].id?.toString() || '');
@@ -37,7 +42,50 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
     estado: ''
   });
 
+  useEffect(() => {
+    let currentCep = '';
+    if (useExistingAddress && selectedAddressId && user?.addresses) {
+      const addr = user.addresses.find((a: any) => a.id.toString() === selectedAddressId);
+      if (addr) currentCep = addr.cep;
+    } else {
+      currentCep = formData.cep;
+    }
+
+    const cleanCep = currentCep.replace(/\D/g, '');
+    if (cleanCep.length === 8) {
+      calculateShipping(cleanCep);
+    } else {
+      setShippingOptions([]);
+      setSelectedShipping(0);
+    }
+  }, [formData.cep, useExistingAddress, selectedAddressId, user?.addresses]);
+
   if (!isOpen) return null;
+
+  const calculateShipping = async (cep: string) => {
+    setLoadingShipping(true);
+    try {
+      const response = await fetch('/api/calculate-shipping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cep_destino: cep })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setShippingOptions(data);
+        if (data.length > 0) {
+          setSelectedShipping(data[0].price);
+        }
+      } else {
+        setShippingOptions([]);
+        setSelectedShipping(0);
+      }
+    } catch (error) {
+      console.error('Erro ao calcular frete', error);
+    } finally {
+      setLoadingShipping(false);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -68,10 +116,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
 
       let clienteId = user?.uid;
 
+      const finalTotal = cartTotal + selectedShipping;
+
       const pedidoData: any = {
         status: 'aguardando_pagamento',
-        valor_total: cartTotal,
-        total: cartTotal,
+        valor_total: finalTotal,
+        total: finalTotal,
+        valor_frete: selectedShipping,
         endereco_entrega: finalAddress
       };
 
@@ -110,6 +161,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           pedidoId: pedido.id,
+          valorFrete: selectedShipping,
           items: cart.map(item => ({
             name: item.name,
             image: item.image || item.imagem_url,
@@ -218,10 +270,51 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                 )}
               </div>
 
+              {/* Shipping Options */}
+              {loadingShipping ? (
+                <div className="flex items-center justify-center p-6 bg-gray-50 rounded-xl border border-gray-100">
+                  <Loader2 className="animate-spin text-gold w-6 h-6 mr-3" />
+                  <span className="text-sm font-bold text-gray-500">Calculando frete...</span>
+                </div>
+              ) : shippingOptions.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2">
+                    <Package size={14} className="text-gold" /> Opções de Frete
+                  </div>
+                  <div className="space-y-3">
+                    {shippingOptions.map((opt: any) => (
+                      <label key={opt.id} className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${selectedShipping === opt.price ? 'border-gold bg-gold/5' : 'border-gray-100 bg-gray-50 hover:border-gold/30'}`}>
+                        <div className="flex items-center gap-3">
+                          <input 
+                            type="radio" 
+                            name="shipping" 
+                            className="text-gold focus:ring-gold accent-gold"
+                            checked={selectedShipping === opt.price}
+                            onChange={() => setSelectedShipping(opt.price)}
+                          />
+                          <div>
+                            <p className="text-sm font-black">{opt.name} ({opt.company?.name})</p>
+                            <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">{opt.custom_delivery_time} dias úteis</p>
+                          </div>
+                        </div>
+                        <span className="text-sm font-black">R$ {opt.price.toFixed(2).replace('.', ',')}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : formData.cep.replace(/\D/g, '').length === 8 && !useExistingAddress && (
+                 <div className="bg-red-50 text-red-600 p-4 border border-red-100 rounded-xl text-xs font-bold text-center">
+                    Não foi possível calcular o frete para este CEP.
+                 </div>
+              )}
+
               <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] uppercase font-black tracking-widest text-gray-400">Total</span>
-                  <p className="font-black text-2xl text-black">R$ {cartTotal.toFixed(2).replace('.', ',')}</p>
+                  <p className="font-black text-2xl text-black flex flex-col">
+                    <span>R$ {(cartTotal + selectedShipping).toFixed(2).replace('.', ',')}</span>
+                    {selectedShipping > 0 && <span className="text-[10px] text-gray-400">Inclui frete</span>}
+                  </p>
                 </div>
                 <button
                   type="submit"
