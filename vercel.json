@@ -16,9 +16,12 @@
       "src": "/api/(.*)",
       "dest": "server.ts"
     },
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/((?!api/.*|assets/.*).*)",
+      "destination": "/index.html"
     }
+  ]
+}}
   ]
 }
