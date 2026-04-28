@@ -43,20 +43,33 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
           const { data, error } = await supabase
             .from('shipping_rules')
             .select('*')
-            .lte('zip_start', cepNum)
-            .gte('zip_end', cepNum)
             .order('priority', { ascending: true })
             .order('price', { ascending: true });
           
           if (error) throw error;
           
           if (data && data.length > 0) {
-            setShippingOptions(data);
-            setSelectedShipping(data[0]);
+            const isLimeira = cepNum >= 13400000 && cepNum <= 13499999;
+            const filteredOptions = data.filter(option => {
+               if (isLimeira) {
+                  return option.carrier.toLowerCase().includes('motoboy');
+               } else {
+                  return !option.carrier.toLowerCase().includes('motoboy');
+               }
+            });
+
+            if (filteredOptions.length > 0) {
+              setShippingOptions(filteredOptions);
+              setSelectedShipping(filteredOptions[0]);
+            } else {
+              setShippingOptions([]);
+              setSelectedShipping(null);
+              toast.error('Nenhuma opção de frete encontrada para este CEP.');
+            }
           } else {
             setShippingOptions([]);
             setSelectedShipping(null);
-            toast.error('Nenhuma opção de frete encontrada para este CEP.');
+            toast.error('Nenhuma opção de frete cadastrada.');
           }
         } catch (error) {
           console.error("Erro ao buscar frete:", error);
@@ -103,8 +116,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
 
       const pedidoData: any = {
         status: 'aguardando_pagamento',
-        valor_produtos: cartTotal,
-        valor_frete: Number(selectedShipping.price),
         valor_total: finalTotal,
         total: finalTotal,
         endereco_entrega: formData.cep

@@ -45,11 +45,8 @@ export const HomePage: React.FC = () => {
           const { data: pedido, error: pedidoError } = await supabase.from('pedidos').insert([{
             cliente_id: clienteId,
             status: 'em_separacao',
-            valor_produtos: session.amount_total / 100,
-            valor_frete: 0,
-            valor_desconto: 0,
             valor_total: session.amount_total / 100,
-            forma_pagamento: 'Stripe'
+            total: session.amount_total / 100
           }]).select().single();
           
           if (pedidoError) {
