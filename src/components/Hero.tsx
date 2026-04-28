@@ -95,33 +95,27 @@ export const Hero: React.FC = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="max-w-2xl"
           >
-            <div className="flex items-center gap-4 mb-6">
-              <span className="bg-gold text-black px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-full animate-pulse shadow-[0_0_15px_rgba(212,175,55,0.4)]">
-                Coleção 2024
-              </span>
-              <div className="h-[1px] w-12 bg-white/30"></div>
-            </div>
-
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-white leading-[0.9] tracking-tighter mb-8 drop-shadow-2xl">
               {activeBanners[current].title?.split(' ').map((word, i) => (
-                <span key={i} className={i % 2 === 1 ? 'text-gold italic block' : 'block'}>
-                  {word}
-                </span>
+                <React.Fragment key={i}>
+                  {i % 2 === 1 ? <span className="text-gold italic">{word} </span> : word + ' '}
+                  {i === 1 && <br />}
+                </React.Fragment>
               )) || 'EXCLUSIDADE EM CADA DETALHE'}
             </h1>
             
             {activeBanners[current].link ? (
-              <div className="flex flex-col sm:flex-row gap-5">
+              <div className="flex flex-col sm:flex-row gap-4">
                 <button 
                   onClick={() => navigate(activeBanners[current].link!)}
-                  className="bg-gold text-black px-14 py-7 font-black uppercase tracking-[0.2em] text-[11px] hover:bg-white hover:scale-105 transition-all shadow-[0_20px_50px_rgba(212,175,55,0.3)] flex items-center justify-center gap-3 active:scale-95 group"
+                  className="bg-gold text-white px-12 py-6 font-black uppercase tracking-widest text-xs hover:bg-white hover:text-black transition-all shadow-2xl flex items-center justify-center gap-3 active:scale-95 group"
                 >
-                  Garantir Agora
+                  Explorar Coleção
                   <ArrowRight size={18} className="transition-transform group-hover:translate-x-2" />
                 </button>
                 <button 
                   onClick={() => navigate('/catalogo')}
-                  className="bg-white/5 backdrop-blur-xl border border-white/20 text-white px-14 py-7 font-black uppercase tracking-[0.2em] text-[11px] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-3 active:scale-95"
+                  className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-12 py-6 font-black uppercase tracking-widest text-xs hover:bg-white hover:text-black transition-all flex items-center justify-center gap-3 active:scale-95"
                 >
                   Ver Catálogo
                 </button>
@@ -129,7 +123,7 @@ export const Hero: React.FC = () => {
             ) : (
               <button 
                 onClick={() => navigate('/catalogo')}
-                className="bg-gold text-black px-14 py-7 font-black uppercase tracking-[0.2em] text-[11px] hover:bg-white hover:scale-105 transition-all shadow-[0_20px_50px_rgba(212,175,55,0.3)] flex items-center justify-center gap-3 active:scale-95 group"
+                className="bg-gold text-white px-12 py-6 font-black uppercase tracking-widest text-xs hover:bg-white hover:text-black transition-all shadow-2xl flex items-center justify-center gap-3 active:scale-95 group"
               >
                 Comprar Agora
                 <ArrowRight size={18} className="transition-transform group-hover:translate-x-2" />

@@ -225,42 +225,6 @@ export const HomePage: React.FC = () => {
         )}
       </section>
 
-      {/* Promotions Section */}
-      <section className="py-24 bg-black text-white overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-1/3 h-full bg-gold/5 blur-[120px] pointer-events-none"></div>
-        <div className="max-w-7xl mx-auto px-4 relative z-10">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-6">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-gold/10 border border-gold/20 rounded-full mb-4">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gold opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-gold"></span>
-                </span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-gold">Ofertas Limitadas</span>
-              </div>
-              <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight">🔥 Promoções <span className="text-gold italic underline decoration-1 underline-offset-8">Imperdíveis</span></h2>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-4 max-w-md leading-relaxed">
-                As melhores peças com preços exclusivos. Estoque limitado e renovação semanal de descontos.
-              </p>
-            </div>
-            <Link to="/catalogo" className="bg-white/10 hover:bg-gold hover:text-black px-8 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all border border-white/10">Ver Todas as Ofertas</Link>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {activeProducts.filter(p => p.old_price).length > 0 ? (
-              activeProducts.filter(p => p.old_price).slice(0, 4).map(product => (
-                <ProductCard key={product.id} product={product} onClick={() => setSelectedProduct(product)} />
-              ))
-            ) : (
-              // Fallback if no products have old_price explicitly
-              activeProducts.slice(2, 6).map(product => (
-                <ProductCard key={product.id} product={product} onClick={() => setSelectedProduct(product)} />
-              ))
-            )}
-          </div>
-        </div>
-      </section>
-
       {/* Best Sellers */}
       <section className="py-24 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4">
