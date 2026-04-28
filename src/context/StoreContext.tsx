@@ -251,8 +251,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setWishlist((prevWishlist) => {
       const exists = prevWishlist.find((item) => item.id === product.id);
       if (exists) {
+        toast.success(`${product.name} removido dos favoritos`, {
+          style: {
+            background: '#000',
+            color: '#fff',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            borderRadius: '0px'
+          }
+        });
         return prevWishlist.filter((item) => item.id !== product.id);
       }
+      toast.success(`${product.name} adicionado aos favoritos!`, {
+        style: {
+          background: '#000',
+          color: '#fff',
+          fontSize: '12px',
+          fontWeight: 'bold',
+          borderRadius: '0px'
+        },
+        iconTheme: {
+          primary: '#D4AF37',
+          secondary: '#000',
+        },
+      });
       return [...prevWishlist, product];
     });
   };

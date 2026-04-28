@@ -3,7 +3,47 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { User, Package, MapPin, LogOut, ChevronRight, Settings } from 'lucide-react';
+import { User, Package, MapPin, LogOut, ChevronRight, Settings, Heart } from 'lucide-react';
+import { useStore } from '../context/StoreContext';
+import { ProductCard } from '../components/ProductCard';
+import { ProductModal } from '../components/ProductModal';
+import { Product } from '../types';
+
+const Wishlist = () => {
+  const { wishlist } = useStore();
+  const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null);
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-black text-black uppercase tracking-tight mb-8">Meus Favoritos</h2>
+      {wishlist.length === 0 ? (
+        <div className="bg-gray-50 border border-gray-100 rounded-2xl p-12 text-center">
+          <Heart size={48} className="mx-auto text-gray-200 mb-4" />
+          <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Sua lista de favoritos está vazia.</p>
+          <Link to="/catalogo" className="mt-6 inline-block bg-black text-white px-8 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gold transition-all">Explorar Produtos</Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
+          {wishlist.map((product) => (
+            <ProductCard 
+              key={product.id} 
+              product={product} 
+              onClick={() => setSelectedProduct(product)}
+            />
+          ))}
+        </div>
+      )}
+
+      {selectedProduct && (
+        <ProductModal 
+          product={selectedProduct} 
+          isOpen={true} 
+          onClose={() => setSelectedProduct(null)} 
+        />
+      )}
+    </div>
+  );
+};
 
 const Orders = () => {
   const { user } = useAuth();
@@ -412,6 +452,7 @@ export const MyAccount: React.FC = () => {
 
   const menuItems = [
     { name: 'Meus Pedidos', icon: <Package size={20} />, path: '/minha-conta/pedidos' },
+    { name: 'Favoritos', icon: <Heart size={20} />, path: '/minha-conta/favoritos' },
     { name: 'Meus Dados', icon: <User size={20} />, path: '/minha-conta/dados' },
     { name: 'Meus Endereços', icon: <MapPin size={20} />, path: '/minha-conta/enderecos' },
   ];
@@ -461,6 +502,7 @@ export const MyAccount: React.FC = () => {
           <Routes>
             <Route index element={<Navigate to="pedidos" replace />} />
             <Route path="pedidos" element={<Orders />} />
+            <Route path="favoritos" element={<Wishlist />} />
             <Route path="dados" element={<UserData />} />
             <Route path="enderecos" element={<Addresses />} />
           </Routes>

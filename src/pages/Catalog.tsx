@@ -4,7 +4,7 @@ import { useStore } from '../context/StoreContext';
 import { ProductCard } from '../components/ProductCard';
 import { ProductModal } from '../components/ProductModal';
 import { Product } from '../types';
-import { Filter, ChevronDown } from 'lucide-react';
+import { Filter, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const Catalog: React.FC = () => {
   const { products, categories: dbCategories, loading } = useStore();
@@ -13,6 +13,15 @@ export const Catalog: React.FC = () => {
   const queryParam = searchParams.get('q') || '';
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [sortBy, setSortBy] = useState('newest');
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+
+  // Reset page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [categoryParam, queryParam]);
 
   const categories = [
     { id: 'all', name: 'Todos' },
@@ -110,6 +119,17 @@ export const Catalog: React.FC = () => {
     return 0; // newest as default (original order)
   });
 
+  // Pagination Logic
+  const totalItems = sortedProducts.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedProducts = sortedProducts.slice(startIndex, startIndex + itemsPerPage);
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="flex-1 bg-white min-h-screen">
       {/* Header */}
@@ -163,16 +183,76 @@ export const Catalog: React.FC = () => {
         </div>
 
         {/* Grid */}
-        {sortedProducts.length > 0 ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-12">
-            {sortedProducts.map(product => (
-              <ProductCard 
-                key={product.id} 
-                product={product} 
-                onClick={() => setSelectedProduct(product)}
-              />
-            ))}
-          </div>
+        {paginatedProducts.length > 0 ? (
+          <>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-12">
+              {paginatedProducts.map(product => (
+                <ProductCard 
+                  key={product.id} 
+                  product={product} 
+                  onClick={() => setSelectedProduct(product)}
+                />
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="mt-20 flex flex-col items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    className="w-12 h-12 flex items-center justify-center rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-black hover:border-black disabled:opacity-30 disabled:pointer-events-none transition-all"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  
+                  <div className="px-8 py-3 bg-gray-50 rounded-xl border border-gray-100">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                      Página <span className="text-black">{currentPage}</span> de <span className="text-black">{totalPages}</span>
+                    </p>
+                  </div>
+
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    className="w-12 h-12 flex items-center justify-center rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-black hover:border-black disabled:opacity-30 disabled:pointer-events-none transition-all"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+                
+                <div className="flex gap-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                    // Show only around current page if there are many pages
+                    if (
+                      totalPages > 7 && 
+                      page !== 1 && 
+                      page !== totalPages && 
+                      (page < currentPage - 1 || page > currentPage + 1)
+                    ) {
+                      if (page === currentPage - 2 || page === currentPage + 2) return <span key={page} className="text-gray-300">...</span>;
+                      return null;
+                    }
+
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`w-10 h-10 flex items-center justify-center rounded-lg text-[10px] font-black transition-all ${
+                          currentPage === page
+                            ? 'bg-gold text-white shadow-lg'
+                            : 'bg-white text-gray-400 border border-gray-100 hover:border-gray-300'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <div className="py-24 text-center">
             <Filter size={48} className="mx-auto text-gray-100 mb-4" />

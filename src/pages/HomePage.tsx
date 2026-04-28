@@ -211,7 +211,7 @@ export const HomePage: React.FC = () => {
         </div>
 
         {newArrivals.length > 0 ? (
-          <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-${Math.min(currentItems.length, 5)} gap-6 pb-8`}>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 pb-8">
             {currentItems.map(product => (
               <div key={product.id} className="animate-in fade-in slide-in-from-right-4 duration-500">
                 <ProductCard product={product} onClick={() => setSelectedProduct(product)} />
@@ -223,6 +223,60 @@ export const HomePage: React.FC = () => {
             <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Nenhuma novidade nos últimos 7 dias. <br/> <Link to="/catalogo" className="text-gold mt-2 inline-block">Ver catálogo completo</Link></p>
           </div>
         )}
+      </section>
+
+      {/* Promotions Section */}
+      <section className="py-24 bg-black text-white overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-1/3 h-full bg-gold/5 blur-[120px] pointer-events-none"></div>
+        <div className="max-w-7xl mx-auto px-4 relative z-10">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-6">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-gold/10 border border-gold/20 rounded-full mb-4">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gold opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-gold"></span>
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-gold">Ofertas Limitadas</span>
+              </div>
+              <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight">🔥 Promoções <span className="text-gold italic underline decoration-1 underline-offset-8">Imperdíveis</span></h2>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-4 max-w-md leading-relaxed">
+                As melhores peças com preços exclusivos. Estoque limitado e renovação semanal de descontos.
+              </p>
+            </div>
+            <Link to="/catalogo" className="bg-white/10 hover:bg-gold hover:text-black px-8 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all border border-white/10">Ver Todas as Ofertas</Link>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {activeProducts.filter(p => p.old_price).length > 0 ? (
+              activeProducts.filter(p => p.old_price).slice(0, 4).map(product => (
+                <ProductCard key={product.id} product={product} onClick={() => setSelectedProduct(product)} />
+              ))
+            ) : (
+              // Fallback if no products have old_price explicitly
+              activeProducts.slice(2, 6).map(product => (
+                <ProductCard key={product.id} product={product} onClick={() => setSelectedProduct(product)} />
+              ))
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Best Sellers */}
+      <section className="py-24 bg-gray-50/50">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex justify-between items-end mb-12">
+            <div>
+              <h2 className="text-3xl font-black text-black uppercase tracking-tight">Mais <span className="text-gold italic">Vendidos</span></h2>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Os favoritos da nossa comunidade</p>
+            </div>
+            <Link to="/catalogo" className="text-[10px] font-black text-gray-400 hover:text-gold uppercase tracking-[0.2em] transition-colors border-b-2 border-gray-100 pb-1">Ver Tudo</Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {activeProducts.slice(4, 8).map(product => (
+              <ProductCard key={product.id} product={product} onClick={() => setSelectedProduct(product)} />
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* CTA Section */}

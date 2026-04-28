@@ -22,41 +22,57 @@ export const Hero: React.FC = () => {
   const prev = () => setCurrent((prev) => (prev - 1 + activeBanners.length) % activeBanners.length);
 
   if (loading) return (
-    <div className="h-[80vh] flex items-center justify-center bg-gray-50">
+    <div className="h-[60vh] flex items-center justify-center bg-gray-50">
       <div className="w-12 h-12 border-4 border-gold border-t-black rounded-full animate-spin" />
     </div>
   );
 
   if (activeBanners.length === 0) {
     return (
-      <div className="relative h-[80vh] min-h-[600px] flex items-center overflow-hidden bg-white">
+      <div className="relative h-[65vh] min-h-[450px] flex items-center overflow-hidden bg-white">
         <div className="absolute inset-0 z-0">
           <img
-            className="w-full h-full object-cover object-[center_20%] opacity-20 grayscale transition-opacity hover:opacity-30 duration-1000"
-            src="https://images.unsplash.com/photo-1490114538077-0a7f8cb49871?auto=format&fit=crop&q=80&w=2000"
+            className="w-full h-full object-cover object-[center_30%] opacity-10 grayscale"
+            src="https://images.unsplash.com/photo-1550928431-ee0ec6db30d3?auto=format&fit=crop&q=80&w=2000"
             alt="Fashion Lifestyle"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/40 to-transparent" />
         </div>
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-2xl">
-            <span className="inline-block px-4 py-1.5 bg-black text-white text-[10px] font-black uppercase tracking-[0.3em] mb-8 rounded-full">
-              New Collection 2024
-            </span>
-            <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black text-black leading-[0.9] tracking-tighter mb-8 items-end">
-              ESSENTIAL <br />
-              <span className="text-gold italic block mt-2">MB IMPORTS</span>
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-12">
+          <div className="max-w-3xl">
+            <div className="flex items-center gap-3 mb-6">
+              <span className="bg-black text-white px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.4em] rounded-full shadow-lg">
+                Nova Coleção 2024
+              </span>
+              <div className="h-[2px] w-12 bg-gold"></div>
+            </div>
+            
+            <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black text-black leading-[0.85] tracking-tighter mb-8 transition-all">
+              <span className="block drop-shadow-sm">ESTILO</span>
+              <span className="text-gold italic block drop-shadow-md">MB IMPORTS</span>
             </h1>
-            <p className="text-gray-500 text-lg sm:text-xl max-w-lg mb-12 font-medium leading-relaxed uppercase tracking-tight">
-              Curadoria excepcional de moda masculina premium para quem não aceita o básico.
+
+            <p className="text-gray-400 text-base sm:text-lg max-w-xl mb-10 font-bold leading-relaxed uppercase tracking-tight">
+              Curadoria excepcional de moda masculina premium para quem exige o extraordinário.
             </p>
+
             <div className="flex flex-col sm:flex-row gap-4">
               <button 
                 onClick={() => navigate('/catalogo')}
-                className="bg-black text-white px-12 py-6 font-black uppercase tracking-widest text-xs hover:bg-gold transition-all shadow-2xl flex items-center justify-center gap-3 active:scale-95 group"
+                className="relative group bg-gold text-black px-12 py-6 font-black uppercase tracking-[0.25em] text-[10px] transition-all active:scale-95 shadow-[0_15px_40px_rgba(212,175,55,0.4)] overflow-hidden"
               >
-                Comprar Agora
-                <ArrowRight size={18} className="transition-transform group-hover:translate-x-2" />
+                <span className="relative z-10 flex items-center gap-4">
+                  Começar a Comprar
+                  <ArrowRight size={18} className="transition-transform group-hover:translate-x-3" />
+                </span>
+                <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12" />
+              </button>
+
+              <button 
+                onClick={() => navigate('/catalogo')}
+                className="px-12 py-6 border-2 border-black text-black font-black uppercase tracking-[0.25em] text-[10px] hover:bg-black hover:text-white transition-all active:scale-95 flex items-center justify-center"
+              >
+                Ver Catálogo
               </button>
             </div>
           </div>
@@ -66,7 +82,7 @@ export const Hero: React.FC = () => {
   }
 
   return (
-    <div className="relative h-[80vh] min-h-[600px] overflow-hidden bg-black">
+    <div className="relative h-[65vh] min-h-[450px] overflow-hidden bg-black">
       <AnimatePresence mode="wait">
         <motion.div
           key={current}
@@ -95,21 +111,43 @@ export const Hero: React.FC = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="max-w-2xl"
           >
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-white leading-[0.9] tracking-tighter mb-8 drop-shadow-2xl">
+            <div className="flex items-center gap-4 mb-6">
+              <span className="bg-gold text-black px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-full animate-pulse shadow-[0_0_15px_rgba(212,175,55,0.4)]">
+                Coleção 2024
+              </span>
+              <div className="h-[1px] w-12 bg-white/30"></div>
+            </div>
+
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white leading-[0.9] tracking-tighter mb-8 drop-shadow-2xl">
               {activeBanners[current].title?.split(' ').map((word, i) => (
-                <React.Fragment key={i}>
-                  {i % 2 === 1 ? <span className="text-gold italic">{word} </span> : word + ' '}
-                  {i === 1 && <br />}
-                </React.Fragment>
+                <span key={i} className={i % 2 === 1 ? 'text-gold italic block' : 'block'}>
+                  {word}
+                </span>
               )) || 'EXCLUSIDADE EM CADA DETALHE'}
             </h1>
             
-            {activeBanners[current].link && (
+            {activeBanners[current].link ? (
+              <div className="flex flex-col sm:flex-row gap-5">
+                <button 
+                  onClick={() => navigate(activeBanners[current].link!)}
+                  className="bg-gold text-black px-12 py-6 font-black uppercase tracking-[0.2em] text-[10px] hover:bg-white hover:scale-105 transition-all shadow-[0_15px_30px_rgba(212,175,55,0.3)] flex items-center justify-center gap-3 active:scale-95 group"
+                >
+                  Garantir Agora
+                  <ArrowRight size={18} className="transition-transform group-hover:translate-x-2" />
+                </button>
+                <button 
+                  onClick={() => navigate('/catalogo')}
+                  className="bg-white/5 backdrop-blur-xl border border-white/20 text-white px-12 py-6 font-black uppercase tracking-[0.2em] text-[10px] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-3 active:scale-95"
+                >
+                  Ver Catálogo
+                </button>
+              </div>
+            ) : (
               <button 
-                onClick={() => navigate(activeBanners[current].link!)}
-                className="bg-white text-black px-12 py-6 font-black uppercase tracking-widest text-xs hover:bg-gold hover:text-white transition-all shadow-2xl flex items-center justify-center gap-3 active:scale-95 group"
+                onClick={() => navigate('/catalogo')}
+                className="bg-gold text-black px-12 py-6 font-black uppercase tracking-[0.2em] text-[10px] hover:bg-white hover:scale-105 transition-all shadow-[0_15px_30px_rgba(212,175,55,0.3)] flex items-center justify-center gap-3 active:scale-95 group"
               >
-                Ver Detalhes
+                Comprar Agora
                 <ArrowRight size={18} className="transition-transform group-hover:translate-x-2" />
               </button>
             )}

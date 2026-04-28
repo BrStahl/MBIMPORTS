@@ -104,7 +104,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
               <img 
                 src="/favicon.png" 
                 alt="Logo" 
-                className="h-20 sm:h-35 w-auto object-contain transition-all"
+                className="h-20 sm:h-25 w-auto object-contain transition-all"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
@@ -185,7 +185,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
             
             <button 
               className="text-black hover:text-gold relative transition-colors hidden sm:block"
-              onClick={() => navigate('/minha-conta')}
+              onClick={() => navigate('/minha-conta/favoritos')}
             >
               <Heart size={22} strokeWidth={2} />
               {wishlist.length > 0 && (
@@ -235,7 +235,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
               style={{ backgroundColor: '#ffffff' }}
             >
               <div className="flex items-center justify-between p-6 border-b border-gray-100 h-24 bg-white">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center">
                   <img 
                     src="/favicon.png" 
                     alt="Logo" 
@@ -244,10 +244,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
                       e.currentTarget.style.display = 'none';
                     }}
                   />
-                  <div className="flex flex-col">
-                    <span className="text-xs font-black tracking-tighter leading-none">MB</span>
-                    <span className="text-[10px] font-bold text-gold tracking-widest leading-none">IMPORTS</span>
-                  </div>
                 </div>
                 <button 
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -334,7 +330,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
                 </button>
 
                 <button
-                  onClick={() => { setIsMobileMenuOpen(false); navigate('/minha-conta'); }}
+                  onClick={() => { setIsMobileMenuOpen(false); navigate('/minha-conta/favoritos'); }}
                   className="flex flex-col items-center gap-2 group"
                 >
                   <div className="text-gray-400 group-hover:text-gold transition-all relative">

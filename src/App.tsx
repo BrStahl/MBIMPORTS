@@ -4,7 +4,6 @@ import { Toaster } from 'react-hot-toast';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { CartDrawer } from './components/CartDrawer';
-import { CheckoutModal } from './components/CheckoutModal';
 import { HomePage } from './pages/HomePage';
 import { Catalog } from './pages/Catalog';
 import { Login } from './pages/Login';
@@ -24,7 +23,6 @@ const ScrollToTop = () => {
 
 const AppContent = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const location = useLocation();
 
   const isAdminRoute = location.pathname.startsWith('/admin');
@@ -55,15 +53,6 @@ const AppContent = () => {
       <CartDrawer 
         isOpen={isCartOpen} 
         onClose={() => setIsCartOpen(false)}
-        onCheckout={() => {
-          setIsCartOpen(false);
-          setIsCheckoutOpen(true);
-        }}
-      />
-      
-      <CheckoutModal 
-        isOpen={isCheckoutOpen} 
-        onClose={() => setIsCheckoutOpen(false)} 
       />
     </div>
   );
