@@ -104,7 +104,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
               <img 
                 src="/favicon.png" 
                 alt="Logo" 
-                className="h-20 sm:h-25 w-auto object-contain transition-all"
+                className="h-20 sm:h-35 w-auto object-contain transition-all"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}

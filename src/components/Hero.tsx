@@ -29,51 +29,34 @@ export const Hero: React.FC = () => {
 
   if (activeBanners.length === 0) {
     return (
-      <div className="relative h-[85vh] min-h-[600px] flex items-center overflow-hidden bg-white">
+      <div className="relative h-[80vh] min-h-[600px] flex items-center overflow-hidden bg-white">
         <div className="absolute inset-0 z-0">
           <img
-            className="w-full h-full object-cover object-[center_30%] opacity-10 grayscale"
-            src="https://images.unsplash.com/photo-1550928431-ee0ec6db30d3?auto=format&fit=crop&q=80&w=2000"
+            className="w-full h-full object-cover object-[center_20%] opacity-20 grayscale transition-opacity hover:opacity-30 duration-1000"
+            src="https://images.unsplash.com/photo-1490114538077-0a7f8cb49871?auto=format&fit=crop&q=80&w=2000"
             alt="Fashion Lifestyle"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
         </div>
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-12">
-          <div className="max-w-3xl">
-            <div className="flex items-center gap-3 mb-10">
-              <span className="bg-black text-white px-5 py-2 text-[10px] font-black uppercase tracking-[0.4em] rounded-full shadow-lg">
-                Nova Coleção 2024
-              </span>
-              <div className="h-[2px] w-16 bg-gold"></div>
-            </div>
-            
-            <h1 className="text-7xl sm:text-8xl lg:text-9xl font-black text-black leading-[0.85] tracking-tighter mb-10 transition-all">
-              <span className="block drop-shadow-sm">ESTILO</span>
-              <span className="text-gold italic block drop-shadow-md">MB IMPORTS</span>
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-2xl">
+            <span className="inline-block px-4 py-1.5 bg-black text-white text-[10px] font-black uppercase tracking-[0.3em] mb-8 rounded-full">
+              New Collection 2024
+            </span>
+            <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black text-black leading-[0.9] tracking-tighter mb-8 items-end">
+              ESSENTIAL <br />
+              <span className="text-gold italic block mt-2">MB IMPORTS</span>
             </h1>
-
-            <p className="text-gray-400 text-lg sm:text-xl max-w-xl mb-14 font-bold leading-relaxed uppercase tracking-tight">
-              Curadoria excepcional de moda masculina premium para quem exige o extraordinário.
+            <p className="text-gray-500 text-lg sm:text-xl max-w-lg mb-12 font-medium leading-relaxed uppercase tracking-tight">
+              Curadoria excepcional de moda masculina premium para quem não aceita o básico.
             </p>
-
-            <div className="flex flex-col sm:flex-row gap-6">
+            <div className="flex flex-col sm:flex-row gap-4">
               <button 
                 onClick={() => navigate('/catalogo')}
-                className="relative group bg-gold text-black px-16 py-8 font-black uppercase tracking-[0.25em] text-xs transition-all active:scale-95 shadow-[0_20px_50px_rgba(212,175,55,0.4)] overflow-hidden"
+                className="bg-black text-white px-12 py-6 font-black uppercase tracking-widest text-xs hover:bg-gold transition-all shadow-2xl flex items-center justify-center gap-3 active:scale-95 group"
               >
-                <span className="relative z-10 flex items-center gap-4">
-                  Começar a Comprar
-                  <ArrowRight size={20} className="transition-transform group-hover:translate-x-3" />
-                </span>
-                <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12" />
-                <div className="absolute -inset-1 bg-gold opacity-30 blur-xl group-hover:opacity-50 transition-opacity animate-pulse" />
-              </button>
-
-              <button 
-                onClick={() => navigate('/catalogo')}
-                className="px-16 py-8 border-2 border-black text-black font-black uppercase tracking-[0.25em] text-xs hover:bg-black hover:text-white transition-all active:scale-95 flex items-center justify-center"
-              >
-                Ver Catálogo
+                Comprar Agora
+                <ArrowRight size={18} className="transition-transform group-hover:translate-x-2" />
               </button>
             </div>
           </div>
