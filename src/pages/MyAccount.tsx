@@ -113,6 +113,49 @@ const Orders = () => {
     }
   };
 
+  const handlePayNow = async (order: any) => {
+    setUpdatingId(order.id);
+    
+    try {
+      const items = order.itens_pedidos && order.itens_pedidos.length > 0
+        ? order.itens_pedidos.map((item: any) => ({
+            name: item.nome_produto,
+            price: item.preco_unitario,
+            quantity: item.quantidade,
+            image: '', 
+            color: item.cor,
+            size: item.tamanho
+          }))
+        : order.itens && Array.isArray(order.itens) ? order.itens : [];
+
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pedidoId: order.id,
+          shippingCost: order.valor_frete || 0,
+          shippingCarrier: 'Frete',
+          items: items,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao iniciar pagamento');
+      }
+
+      const { url } = await response.json();
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('URL de pagamento não retornada');
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao redirecionar para pagamento.');
+      setUpdatingId(null);
+    }
+  };
+
   if (loading) {
     return <div className="p-12 text-center text-gray-400 font-bold uppercase tracking-widest text-xs">Carregando...</div>;
   }
@@ -212,6 +255,29 @@ const Orders = () => {
                     </>
                   ) : (
                     'Recebi meu Produto'
+                  )}
+                </button>
+              )}
+              {order.status === 'aguardando_pagamento' && (
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handlePayNow(order);
+                  }}
+                  disabled={updatingId === order.id}
+                  className={`w-full mt-6 py-4 rounded-xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg active:scale-[0.98] border-2 border-transparent transition-all flex items-center justify-center gap-2 ${
+                    updatingId === order.id 
+                      ? 'bg-gray-400 text-white cursor-not-allowed' 
+                      : 'bg-gold text-black hover:bg-yellow-400 hover:border-yellow-300'
+                  }`}
+                >
+                  {updatingId === order.id ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                      Aguarde...
+                    </>
+                  ) : (
+                    'PAGAR AGORA'
                   )}
                 </button>
               )}
