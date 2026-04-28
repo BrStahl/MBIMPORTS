@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, CheckCircle, ShieldCheck, CreditCard, MapPin, Package, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, CheckCircle, ShieldCheck, Truck, MapPin } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -15,77 +15,68 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
   const { user } = useAuth();
   const [step, setStep] = useState<1 | 2>(1); // 1: form, 2: success
   const [isProcessing, setIsProcessing] = useState(false);
-  const [useExistingAddress, setUseExistingAddress] = useState(false);
-  const [selectedAddressId, setSelectedAddressId] = useState('');
-
-  // Shipping State
-  const [shippingOptions, setShippingOptions] = useState<any[]>([]);
-  const [loadingShipping, setLoadingShipping] = useState(false);
-  const [selectedShipping, setSelectedShipping] = useState<number>(0);
-
-  useEffect(() => {
-    if (user && user.addresses && user.addresses.length > 0) {
-      setUseExistingAddress(true);
-      setSelectedAddressId(user.addresses[0].id?.toString() || '');
-    }
-  }, [user]);
 
   // Form State
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
-    rua: '',
-    numero: '',
-    bairro: '',
-    cidade: '',
-    cep: '',
-    estado: ''
+    cep: ''
   });
 
-  useEffect(() => {
-    let currentCep = '';
-    if (useExistingAddress && selectedAddressId && user?.addresses) {
-      const addr = user.addresses.find((a: any) => a.id.toString() === selectedAddressId);
-      if (addr) currentCep = addr.cep;
-    } else {
-      currentCep = formData.cep;
+  const [shippingOptions, setShippingOptions] = useState<any[]>([]);
+  const [selectedShipping, setSelectedShipping] = useState<any>(null);
+  const [isLoadingShipping, setIsLoadingShipping] = useState(false);
+
+  React.useEffect(() => {
+    if (user?.addresses && user.addresses.length > 0) {
+      setFormData(prev => ({ ...prev, cep: user.addresses[0].cep || '' }));
     }
+  }, [user]);
 
-    const cleanCep = currentCep.replace(/\D/g, '');
-    if (cleanCep.length === 8) {
-      calculateShipping(cleanCep);
-    } else {
-      setShippingOptions([]);
-      setSelectedShipping(0);
-    }
-  }, [formData.cep, useExistingAddress, selectedAddressId, user?.addresses]);
-
-  if (!isOpen) return null;
-
-  const calculateShipping = async (cep: string) => {
-    setLoadingShipping(true);
-    try {
-      const response = await fetch('/api/calculate-shipping', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cep_destino: cep })
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setShippingOptions(data);
-        if (data.length > 0) {
-          setSelectedShipping(data[0].price);
+  React.useEffect(() => {
+    const fetchShipping = async () => {
+      const cleanCep = formData.cep.replace(/\D/g, '');
+      if (cleanCep.length === 8) {
+        setIsLoadingShipping(true);
+        try {
+          const cepNum = parseInt(cleanCep, 10);
+          const { data, error } = await supabase
+            .from('shipping_rules')
+            .select('*')
+            .lte('zip_start', cepNum)
+            .gte('zip_end', cepNum)
+            .order('priority', { ascending: true })
+            .order('price', { ascending: true });
+          
+          if (error) throw error;
+          
+          if (data && data.length > 0) {
+            setShippingOptions(data);
+            setSelectedShipping(data[0]);
+          } else {
+            setShippingOptions([]);
+            setSelectedShipping(null);
+            toast.error('Nenhuma opção de frete encontrada para este CEP.');
+          }
+        } catch (error) {
+          console.error("Erro ao buscar frete:", error);
+          toast.error('Erro ao buscar o frete.');
+        } finally {
+          setIsLoadingShipping(false);
         }
       } else {
-        setShippingOptions([]);
-        setSelectedShipping(0);
+         setShippingOptions([]);
+         setSelectedShipping(null);
       }
-    } catch (error) {
-      console.error('Erro ao calcular frete', error);
-    } finally {
-      setLoadingShipping(false);
-    }
-  };
+    };
+    
+    const timeoutId = setTimeout(fetchShipping, 500);
+    return () => clearTimeout(timeoutId);
+  }, [formData.cep]);
+
+  const finalTotal = cartTotal + (selectedShipping ? Number(selectedShipping.price) : 0);
+
+  if (!isOpen) return null;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -102,28 +93,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
 
     try {
       // 1. Criar o Pedido no Supabase
-      let finalAddress = '';
-      if (useExistingAddress && selectedAddressId && user?.addresses) {
-        const addr = user.addresses.find((a: any) => a.id.toString() === selectedAddressId);
-        if (addr) {
-          finalAddress = `${addr.rua}, ${addr.numero} - ${addr.bairro}, ${addr.cidade} - ${addr.estado} CEP: ${addr.cep}`;
-        }
-      }
-      
-      if (!finalAddress) {
-        finalAddress = `${formData.rua}, ${formData.numero} - ${formData.bairro}, ${formData.cidade} - ${formData.estado} CEP: ${formData.cep}`;
+      if (!selectedShipping) {
+        toast.error('Selecione uma opção de frete.');
+        setIsProcessing(false);
+        return;
       }
 
       let clienteId = user?.uid;
 
-      const finalTotal = cartTotal + selectedShipping;
-
       const pedidoData: any = {
         status: 'aguardando_pagamento',
+        valor_produtos: cartTotal,
+        valor_frete: Number(selectedShipping.price),
         valor_total: finalTotal,
         total: finalTotal,
-        valor_frete: selectedShipping,
-        endereco_entrega: finalAddress
+        endereco_entrega: formData.cep
       };
 
       if (clienteId) {
@@ -161,7 +145,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           pedidoId: pedido.id,
-          valorFrete: selectedShipping,
+          shippingCost: Number(selectedShipping.price),
+          shippingCarrier: selectedShipping.carrier,
           items: cart.map(item => ({
             name: item.name,
             image: item.image || item.imagem_url,
@@ -229,92 +214,60 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
 
               {/* Shipping Address */}
               <div className="space-y-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-                    <MapPin size={14} className="text-gold" /> Endereço de Entrega
-                  </div>
-                  {user && user.addresses && user.addresses.length > 0 && (
-                    <button type="button" onClick={() => setUseExistingAddress(!useExistingAddress)} className="text-[10px] font-bold text-gold uppercase hover:underline">
-                      {useExistingAddress ? 'Digitar Novo Endereço' : 'Usar Endereço Salvo'}
-                    </button>
-                  )}
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2">
+                  <MapPin size={14} className="text-gold" /> Frete e Entrega
                 </div>
                 
-                {useExistingAddress && user?.addresses && user.addresses.length > 0 ? (
-                  <select
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold"
-                    value={selectedAddressId}
-                    onChange={(e) => setSelectedAddressId(e.target.value)}
-                  >
-                    {user.addresses.map((addr: any) => (
-                      <option key={addr.id} value={addr.id}>
-                        {addr.rua}, {addr.numero} - {addr.bairro}, {addr.cidade} - {addr.estado} CEP: {addr.cep}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-3 gap-4">
-                      <input required={!useExistingAddress} name="rua" value={formData.rua} onChange={handleChange} type="text" className="col-span-2 w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Rua / Avenida" />
-                      <input required={!useExistingAddress} name="numero" value={formData.numero} onChange={handleChange} type="text" className="col-span-1 w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Número" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <input required={!useExistingAddress} name="bairro" value={formData.bairro} onChange={handleChange} type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Bairro" />
-                      <input required={!useExistingAddress} name="cidade" value={formData.cidade} onChange={handleChange} type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Cidade" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <input required={!useExistingAddress} name="cep" value={formData.cep} onChange={handleChange} type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="CEP" />
-                      <input required={!useExistingAddress} name="estado" value={formData.estado} onChange={handleChange} type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Estado" />
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Shipping Options */}
-              {loadingShipping ? (
-                <div className="flex items-center justify-center p-6 bg-gray-50 rounded-xl border border-gray-100">
-                  <Loader2 className="animate-spin text-gold w-6 h-6 mr-3" />
-                  <span className="text-sm font-bold text-gray-500">Calculando frete...</span>
+                <div className="relative">
+                  <input 
+                    required 
+                    name="cep" 
+                    value={formData.cep} 
+                    onChange={handleChange} 
+                    type="text" 
+                    maxLength={9}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" 
+                    placeholder="Digite seu CEP" 
+                  />
+                  {isLoadingShipping && (
+                    <div className="absolute right-4 top-3 text-[10px] font-black uppercase text-gold animate-pulse">Buscando...</div>
+                  )}
                 </div>
-              ) : shippingOptions.length > 0 ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2">
-                    <Package size={14} className="text-gold" /> Opções de Frete
-                  </div>
-                  <div className="space-y-3">
-                    {shippingOptions.map((opt: any) => (
-                      <label key={opt.id} className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${selectedShipping === opt.price ? 'border-gold bg-gold/5' : 'border-gray-100 bg-gray-50 hover:border-gold/30'}`}>
+
+                {shippingOptions.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Opções de Frete</h4>
+                    {shippingOptions.map(option => (
+                      <label 
+                        key={option.id} 
+                        className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${selectedShipping?.id === option.id ? 'border-gold bg-gold/5' : 'border-gray-100 bg-white hover:border-gray-200'}`}
+                      >
                         <div className="flex items-center gap-3">
                           <input 
                             type="radio" 
                             name="shipping" 
-                            className="text-gold focus:ring-gold accent-gold"
-                            checked={selectedShipping === opt.price}
-                            onChange={() => setSelectedShipping(opt.price)}
+                            className="text-gold focus:ring-gold"
+                            checked={selectedShipping?.id === option.id}
+                            onChange={() => setSelectedShipping(option)}
                           />
                           <div>
-                            <p className="text-sm font-black">{opt.name} ({opt.company?.name})</p>
-                            <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">{opt.custom_delivery_time} dias úteis</p>
+                            <p className="text-sm font-bold text-gray-900">{option.carrier}</p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Entrega em até {option.delivery_time} dias úteis</p>
                           </div>
                         </div>
-                        <span className="text-sm font-black">R$ {opt.price.toFixed(2).replace('.', ',')}</span>
+                        <span className="text-sm font-black text-gray-900">
+                          {Number(option.price) === 0 ? 'Grátis' : `R$ ${Number(option.price).toFixed(2).replace('.', ',')}`}
+                        </span>
                       </label>
                     ))}
                   </div>
-                </div>
-              ) : formData.cep.replace(/\D/g, '').length === 8 && !useExistingAddress && (
-                 <div className="bg-red-50 text-red-600 p-4 border border-red-100 rounded-xl text-xs font-bold text-center">
-                    Não foi possível calcular o frete para este CEP.
-                 </div>
-              )}
+                )}
+              </div>
 
               <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] uppercase font-black tracking-widest text-gray-400">Total</span>
-                  <p className="font-black text-2xl text-black flex flex-col">
-                    <span>R$ {(cartTotal + selectedShipping).toFixed(2).replace('.', ',')}</span>
-                    {selectedShipping > 0 && <span className="text-[10px] text-gray-400">Inclui frete</span>}
-                  </p>
+                  <p className="font-black text-2xl text-black">R$ {finalTotal.toFixed(2).replace('.', ',')}</p>
                 </div>
                 <button
                   type="submit"

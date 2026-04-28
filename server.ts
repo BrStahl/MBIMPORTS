@@ -23,43 +23,28 @@ async function startServer() {
 
   app.post('/api/create-checkout-session', async (req, res) => {
     try {
-      const { items, pedidoId, valorFrete } = req.body;
+      const { items } = req.body;
       const stripe = getStripe();
       
-      const line_items = items.map((item: any) => ({
-        price_data: {
-          currency: 'brl',
-          product_data: {
-            name: item.name,
-            images: item.image ? [item.image] : [],
-          },
-          unit_amount: Math.round(item.price * 100), // Stripe expects amounts in cents
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        shipping_address_collection: {
+          allowed_countries: ['BR'],
         },
-        quantity: item.quantity,
-      }));
-
-      if (valorFrete && Number(valorFrete) > 0) {
-        line_items.push({
+        metadata: {
+          cart: JSON.stringify(items),
+        },
+        line_items: items.map((item: any) => ({
           price_data: {
             currency: 'brl',
             product_data: {
-              name: 'Frete',
+              name: item.name,
+              images: item.image ? [item.image] : [],
             },
-            unit_amount: Math.round(Number(valorFrete) * 100),
+            unit_amount: Math.round(item.price * 100), // Stripe expects amounts in cents
           },
-          quantity: 1,
-        });
-      }
-
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        client_reference_id: pedidoId ? String(pedidoId) : undefined,
-        metadata: {
-          pedidoId: pedidoId ? String(pedidoId) : '',
-          cart: JSON.stringify(items),
-          valorFrete: valorFrete ? String(valorFrete) : '0',
-        },
-        line_items,
+          quantity: item.quantity,
+        })),
         mode: 'payment',
         success_url: `${req.headers.origin}/?success=true&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${req.headers.origin}/?canceled=true`,
@@ -87,89 +72,6 @@ async function startServer() {
       res.json(session);
     } catch (error: any) {
       console.error('Error retrieving checkout session', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.post('/api/calculate-shipping', async (req, res) => {
-    try {
-      const { cep_destino } = req.body;
-
-      if (!cep_destino) {
-        return res.status(400).json({ error: 'CEP de destino é obrigatório' });
-      }
-
-      const token = process.env.MELHOR_ENVIO_TOKEN;
-
-      if (!token) {
-        // Mock se não houver token
-        return res.status(200).json([
-          {
-            id: 1,
-            name: 'PAC (Mock)',
-            price: 25.50,
-            custom_delivery_time: 5,
-            company: { name: 'Correios' },
-          },
-          {
-            id: 2,
-            name: 'SEDEX (Mock)',
-            price: 45.00,
-            custom_delivery_time: 2,
-            company: { name: 'Correios' },
-          }
-        ]);
-      }
-
-      const cepOrigem = process.env.CEP_ORIGEM || '01001000'; // Default CEP
-      const payload = {
-        from: { postal_code: cepOrigem },
-        to: { postal_code: cep_destino.replace(/\D/g, '') },
-        products: [
-          {
-            id: "1",
-            width: 20,
-            height: 10,
-            length: 30,
-            weight: 1.0,
-            insurance_value: 100.0,
-            quantity: 1,
-          }
-        ]
-      };
-
-      const baseUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://www.melhorenvio.com.br/api/v2' 
-        : 'https://sandbox.melhorenvio.com.br/api/v2';
-
-      const response = await fetch(`${baseUrl}/me/shipment/calculate`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        throw new Error('Falha ao calcular frete na Melhor Envio');
-      }
-
-      const data = await response.json();
-      const validOptions = data
-        .filter((opt: any) => !opt.error)
-        .map((opt: any) => ({
-          id: opt.id,
-          name: opt.name,
-          price: parseFloat(opt.price),
-          custom_delivery_time: opt.custom_delivery_time,
-          company: opt.company
-        }));
-
-      res.status(200).json(validOptions);
-    } catch (error: any) {
-      console.error('Error calculating shipping', error);
       res.status(500).json({ error: error.message });
     }
   });

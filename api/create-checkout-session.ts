@@ -6,7 +6,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { items, pedidoId, valorFrete } = req.body;
+    const { items, pedidoId, shippingCost, shippingCarrier } = req.body;
     
     if (!process.env.STRIPE_SECRET_KEY) {
       throw new Error('STRIPE_SECRET_KEY environment variable is required');
@@ -16,40 +16,39 @@ export default async function handler(req: any, res: any) {
       apiVersion: '2023-10-16' as any
     });
 
-    const line_items = items.map((item: any) => ({
-      price_data: {
-        currency: 'brl',
-        product_data: {
-          name: item.name,
-          images: item.image ? [item.image] : [],
-        },
-        unit_amount: Math.round(item.price * 100),
-      },
-      quantity: item.quantity,
-    }));
-
-    if (valorFrete && Number(valorFrete) > 0) {
-      line_items.push({
-        price_data: {
-          currency: 'brl',
-          product_data: {
-            name: 'Frete',
-          },
-          unit_amount: Math.round(Number(valorFrete) * 100),
-        },
-        quantity: 1,
-      });
-    }
-
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       client_reference_id: pedidoId ? String(pedidoId) : undefined,
+      shipping_address_collection: {
+        allowed_countries: ['BR'],
+      },
+      shipping_options: shippingCost !== undefined && shippingCost >= 0 ? [
+        {
+          shipping_rate_data: {
+            type: 'fixed_amount',
+            fixed_amount: {
+              amount: Math.round(shippingCost * 100),
+              currency: 'brl',
+            },
+            display_name: shippingCarrier || 'Frete',
+          },
+        },
+      ] : undefined,
       metadata: {
         pedidoId: pedidoId ? String(pedidoId) : '',
         cart: JSON.stringify(items),
-        valorFrete: valorFrete ? String(valorFrete) : '0',
       },
-      line_items,
+      line_items: items.map((item: any) => ({
+        price_data: {
+          currency: 'brl',
+          product_data: {
+            name: item.name,
+            images: item.image ? [item.image] : [],
+          },
+          unit_amount: Math.round(item.price * 100),
+        },
+        quantity: item.quantity,
+      })),
       mode: 'payment',
       success_url: `${req.headers.origin || req.headers.referer || 'https://' + req.headers.host}/?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.origin || req.headers.referer || 'https://' + req.headers.host}/?canceled=true`,
