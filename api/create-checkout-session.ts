@@ -6,7 +6,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { items } = req.body;
+    const { items, pedidoId } = req.body;
     
     if (!process.env.STRIPE_SECRET_KEY) {
       throw new Error('STRIPE_SECRET_KEY environment variable is required');
@@ -18,10 +18,12 @@ export default async function handler(req: any, res: any) {
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
+      client_reference_id: pedidoId ? String(pedidoId) : undefined,
       shipping_address_collection: {
         allowed_countries: ['BR'],
       },
       metadata: {
+        pedidoId: pedidoId ? String(pedidoId) : '',
         cart: JSON.stringify(items),
       },
       line_items: items.map((item: any) => ({

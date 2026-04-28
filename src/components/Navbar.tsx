@@ -344,12 +344,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onCartClick }) => {
                         )}
                       </button>
                       
-                      <AnimatePresence>
+                      <AnimatePresence initial={false}>
                         {link.sublinks && openSubmenu === link.path && (
                           <motion.div
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3, ease: 'easeInOut' }}
                             className="overflow-hidden"
                           >
                             <div className="pl-6 pb-6 space-y-5 mt-2 border-l-2 border-gold/20">

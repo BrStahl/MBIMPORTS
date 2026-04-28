@@ -34,10 +34,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
     bairro: '',
     cidade: '',
     cep: '',
-    estado: '',
-    cartao: '',
-    validade: '',
-    cvv: ''
+    estado: ''
   });
 
   if (!isOpen) return null;
@@ -56,10 +53,63 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
     setIsProcessing(true);
 
     try {
+      // 1. Criar o Pedido no Supabase
+      let finalAddress = '';
+      if (useExistingAddress && selectedAddressId && user?.addresses) {
+        const addr = user.addresses.find((a: any) => a.id.toString() === selectedAddressId);
+        if (addr) {
+          finalAddress = `${addr.rua}, ${addr.numero} - ${addr.bairro}, ${addr.cidade} - ${addr.estado} CEP: ${addr.cep}`;
+        }
+      }
+      
+      if (!finalAddress) {
+        finalAddress = `${formData.rua}, ${formData.numero} - ${formData.bairro}, ${formData.cidade} - ${formData.estado} CEP: ${formData.cep}`;
+      }
+
+      let clienteId = user?.uid;
+
+      const pedidoData: any = {
+        status: 'aguardando_pagamento',
+        valor_total: cartTotal,
+        total: cartTotal,
+        endereco_entrega: finalAddress
+      };
+
+      if (clienteId) {
+        pedidoData.cliente_id = clienteId;
+      }
+
+      const { data: pedido, error: pedidoError } = await supabase
+        .from('pedidos')
+        .insert([pedidoData])
+        .select()
+        .single();
+
+      if (pedidoError) throw pedidoError;
+
+      // 2. Inserir itens do pedido
+      const itensData = cart.map((item: any) => ({
+        pedido_id: pedido.id,
+        produto_id: item.id || item.productId,
+        quantidade: item.quantity,
+        preco_unitario: item.price,
+        subtotal: Number(item.quantity) * Number(item.price),
+        nome_produto: item.name,
+        cor: item.color || '',
+        tamanho: item.size || ''
+      }));
+
+      const { error: itensError } = await supabase
+        .from('itens_pedidos')
+        .insert(itensData);
+
+      if (itensError) throw itensError;
+
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          pedidoId: pedido.id,
           items: cart.map(item => ({
             name: item.name,
             image: item.image || item.imagem_url,
@@ -166,18 +216,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                     </div>
                   </>
                 )}
-              </div>
-
-              {/* Payment */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2">
-                  <CreditCard size={14} className="text-gold" /> Pagamento (Simulação com Stripe)
-                </div>
-                <input required name="cartao" value={formData.cartao} onChange={handleChange} type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="Número do Cartão" />
-                <div className="grid grid-cols-2 gap-4">
-                  <input required name="validade" value={formData.validade} onChange={handleChange} type="text" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="MM/AA" />
-                  <input required name="cvv" value={formData.cvv} onChange={handleChange} type="password" title="CVV" className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:border-gold transition-all font-bold" placeholder="CVV" />
-                </div>
               </div>
 
               <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between">

@@ -21,8 +21,20 @@ export const HomePage: React.FC = () => {
         const response = await fetch(`/api/checkout-session?session_id=${sessionId}`);
         const session = await response.json();
         
-        if (session && session.customer_details) {
-          // Extrair itens do cart
+        if (session && session.metadata?.pedidoId) {
+          const pedidoId = session.metadata.pedidoId;
+
+          // Atualiza o pedido para "em_separacao" ou "recebido"
+          const { error: updateError } = await supabase
+            .from('pedidos')
+            .update({ status: 'em_separacao' })
+            .eq('id', pedidoId);
+
+          if (updateError) {
+            console.error('Erro ao atualizar status do pedido:', updateError);
+          }
+        } else if (session && session.customer_details) {
+          // Fallback legacy behavior case it wasn't created before
           const items = session.metadata && session.metadata.cart ? JSON.parse(session.metadata.cart) : [];
           
           let clienteId = null;
@@ -32,7 +44,7 @@ export const HomePage: React.FC = () => {
           // Tentar salvar no banco com os campos corretos observados
           const { data: pedido, error: pedidoError } = await supabase.from('pedidos').insert([{
             cliente_id: clienteId,
-            status: 'recebido', // Valor oficial permitido
+            status: 'em_separacao',
             valor_produtos: session.amount_total / 100,
             valor_frete: 0,
             valor_desconto: 0,
